@@ -24,6 +24,7 @@ def parser() -> argparse.ArgumentParser:
     cli.add_argument("--max-steps", type=int, default=MAX_STEPS, help="Step budget (default 40)")
     cli.add_argument("--window-id", help="Pin one window when the app has several")
     cli.add_argument("--self-test", action="store_true", help="Send one noul question to Jev and print the answer")
+    cli.add_argument("--web", action="store_true", help="Web-app mode: longer settle window for async UIs")
     return cli
 
 
@@ -47,6 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         authorize=args.authorize,
         max_steps=args.max_steps,
         window_id=args.window_id,
+        web=args.web,
     )
     sys.stdout.write(json.dumps(result, indent=2) + "\n")
     return 0 if result.get("ok") and result.get("status") == "done" else 1

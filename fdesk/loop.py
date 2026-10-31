@@ -43,11 +43,13 @@ def run(
     driver: Any = None,
     client: Any = None,
     notes: str = "",
+    web: bool = False,
 ) -> dict:
     """Run the desktop loop until DONE, BLOCKED, confirmation, or a budget.
 
     Returns a Result-style dict. ``ok`` is true only when the model finishes
     on DONE. Jev calls and an estimated dollar spend are counted on the result.
+    Set web=True for web apps: longer settle window, bigger control index.
     """
     desktop = driver or Desktop()
     jev = client or JevClient()
@@ -56,7 +58,7 @@ def run(
     ctx = {
         "task": task, "app": app, "window_id": window_id, "steps": 0, "calls": 0,
         "spend": 0.0, "history": history, "stall": 0, "latch": None, "notes": notes,
-        "repeat": 0, "last_sig": None,
+        "repeat": 0, "last_sig": None, "web": web,
     }
     try:
         observed = desktop.snapshot(app, window_id=window_id)
@@ -162,7 +164,7 @@ def _step(desktop: Any, jev: Any, observed: dict, queue: list[str], authorize: b
     acted = _dispatch(desktop, operation, target, text, ctx["app"], ctx["window_id"])
     if operation in _TEXT_OPS and text is not None and not acted.get("ok") and not _may_have_landed(acted):
         queue.insert(0, text)
-    verified = _verify(desktop, ctx["app"], ctx["window_id"])
+    verified = _verify(desktop, ctx["app"], ctx["window_id"], web=ctx.get("web", False))
     uncertain = _may_have_landed(acted) or not verified["settled"]
     changed = None
     if verified["settled"] and verified["fingerprint"] is not None:
@@ -243,10 +245,13 @@ def _fresh(desktop: Any, app: str, window_id: str | None, observed: dict) -> dic
     return {"ok": True, "stop": False, "error": None, "observation": again}
 
 
-def _verify(desktop: Any, app: str, window_id: str | None) -> dict:
-    """Take snapshots until two in a row share a fingerprint, or the check is unclear."""
+def _verify(desktop: Any, app: str, window_id: str | None, web: bool = False) -> dict:
+    """Take snapshots until two in a row share a fingerprint, or the check is unclear.
+    Web mode: more attempts with a pause, for async-loaded UIs."""
+    import time
+    attempts = 5 if web else 3
     shots: list[tuple[dict, str]] = []
-    for _ in range(3):
+    for i in range(attempts):
         shot = desktop.snapshot(app, window_id=window_id)
         if not shot.get("ok"):
             return {"settled": False, "observation": shot if shot.get("data") else (shots[-1][0] if shots else shot), "fingerprint": shots[-1][1] if shots else None}
@@ -254,6 +259,8 @@ def _verify(desktop: Any, app: str, window_id: str | None) -> dict:
         shots.append((shot, digest))
         if len(shots) >= 2 and shots[-1][1] == shots[-2][1]:
             return {"settled": True, "observation": shot, "fingerprint": digest}
+        if web and i < attempts - 1:
+            time.sleep(0.8)
     return {"settled": False, "observation": shots[-1][0], "fingerprint": shots[-1][1]}
 
 
