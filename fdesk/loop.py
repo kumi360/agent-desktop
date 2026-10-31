@@ -44,12 +44,14 @@ def run(
     client: Any = None,
     notes: str = "",
     web: bool = False,
+    dry_run: bool = False,
 ) -> dict:
     """Run the desktop loop until DONE, BLOCKED, confirmation, or a budget.
 
     Returns a Result-style dict. ``ok`` is true only when the model finishes
     on DONE. Jev calls and an estimated dollar spend are counted on the result.
     Set web=True for web apps: longer settle window, bigger control index.
+    Set dry_run=True to plan the first action without executing it.
     """
     desktop = driver or Desktop()
     jev = client or JevClient()
@@ -58,7 +60,7 @@ def run(
     ctx = {
         "task": task, "app": app, "window_id": window_id, "steps": 0, "calls": 0,
         "spend": 0.0, "history": history, "stall": 0, "latch": None, "notes": notes,
-        "repeat": 0, "last_sig": None, "web": web,
+        "repeat": 0, "last_sig": None, "web": web, "dry_run": dry_run,
     }
     try:
         observed = desktop.snapshot(app, window_id=window_id)
@@ -160,6 +162,13 @@ def _step(desktop: Any, jev: Any, observed: dict, queue: list[str], authorize: b
             return {"stop": True, "result": _finish(
                 ctx, "blocked", {"code": "TEXT_UNAVAILABLE", "message": "no caller-supplied text remains"},
             )}
+    if ctx.get("dry_run"):
+        _record(ctx, operation, target, chosen, True, None, "dry-run: action planned but not executed")
+        return {"stop": True, "result": _finish(
+            ctx, "done",
+            None,
+            extra={"dry_run": {"operation": operation, "target": target, "target_label": decision.get("target_label"), "confidence": float(decision["confidence"])}},
+        )}
     before = tree_fingerprint(observed.get("data"))
     acted = _dispatch(desktop, operation, target, text, ctx["app"], ctx["window_id"])
     if operation in _TEXT_OPS and text is not None and not acted.get("ok") and not _may_have_landed(acted):
@@ -353,9 +362,9 @@ def _budget(message: str) -> dict:
     return {"code": "BUDGET_EXCEEDED", "message": message}
 
 
-def _finish(ctx: dict, status: str, error: dict | None) -> dict:
+def _finish(ctx: dict, status: str, error: dict | None, extra: dict | None = None) -> dict:
     """Package the run ledger. ``ok`` is true only for a DONE completion."""
-    return {
+    result = {
         "ok": status == "done",
         "status": status,
         "error": error,
@@ -367,3 +376,6 @@ def _finish(ctx: dict, status: str, error: dict | None) -> dict:
         "app": ctx["app"],
         "window_id": ctx["window_id"],
     }
+    if extra:
+        result.update(extra)
+    return result

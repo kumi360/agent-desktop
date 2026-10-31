@@ -25,6 +25,7 @@ def parser() -> argparse.ArgumentParser:
     cli.add_argument("--window-id", help="Pin one window when the app has several")
     cli.add_argument("--self-test", action="store_true", help="Send one noul question to Jev and print the answer")
     cli.add_argument("--web", action="store_true", help="Web-app mode: longer settle window for async UIs")
+    cli.add_argument("--dry-run", action="store_true", help="Plan the first action without executing it")
     return cli
 
 
@@ -49,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         max_steps=args.max_steps,
         window_id=args.window_id,
         web=args.web,
+        dry_run=args.dry_run,
     )
     sys.stdout.write(json.dumps(result, indent=2) + "\n")
     return 0 if result.get("ok") and result.get("status") == "done" else 1

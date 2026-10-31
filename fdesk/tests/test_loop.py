@@ -158,5 +158,49 @@ class TestCheckComplete(unittest.TestCase):
         self.assertTrue(outcome["result"]["ok"])
 
 
+class TestWebMode(unittest.TestCase):
+    def test_verify_web_uses_more_attempts(self):
+        # Web mode should try up to 5 snapshots (vs 3) with changing fingerprints
+        driver = StubDriver()
+        driver._version = 0
+        orig_snapshot = driver.snapshot
+        def changing_snapshot(app, window_id=None, timeout=None):
+            driver._version += 1
+            tree = dict(driver._tree)
+            tree["name"] = f"Win{driver._version}"
+            return {"ok": True, "data": {"tree": tree}}
+        driver.snapshot = changing_snapshot
+        result = loop._verify(driver, "App", None, web=True)
+        # 5 attempts, never settled (fingerprints keep changing)
+        self.assertFalse(result["settled"])
+        self.assertEqual(driver._version, 5)
+
+    def test_verify_standard_uses_3_attempts(self):
+        driver = StubDriver()
+        driver._version = 0
+        def changing_snapshot(app, window_id=None, timeout=None):
+            driver._version += 1
+            tree = dict(driver._tree)
+            tree["name"] = f"Win{driver._version}"
+            return {"ok": True, "data": {"tree": tree}}
+        driver.snapshot = changing_snapshot
+        result = loop._verify(driver, "App", None, web=False)
+        self.assertFalse(result["settled"])
+        self.assertEqual(driver._version, 3)
+
+
+class TestDryRun(unittest.TestCase):
+    def test_dry_run_plans_without_acting(self):
+        driver = StubDriver()
+        jev = StubJev()  # chooses CLICK on OK
+        result = loop.run("Click OK", "App", driver=driver, client=jev, dry_run=True, max_steps=5)
+        self.assertTrue(result["ok"])
+        self.assertIn("dry_run", result)
+        self.assertEqual(result["dry_run"]["operation"], "CLICK")
+        # Driver should have NO click calls (only snapshots)
+        clicks = [c for c in driver.calls if c[0] == "click"]
+        self.assertEqual(len(clicks), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
