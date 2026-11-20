@@ -86,6 +86,7 @@ fn live_x11_cursor_adapter_paints_agent_positions_and_retires_resources() {
         .unwrap();
     let pointer = oracle.query_pointer(root).unwrap().reply().unwrap();
     let mut white = agent_desktop_core::CursorOverlayStyle::default();
+    white.set_look(agent_desktop_core::CursorLook::Arrow);
     white.set_fill("#FFFFFF".into());
     update(&CursorOverlayControl::enable(
         "pixel-proof".into(),
@@ -203,4 +204,76 @@ fn live_wayland_cursor_refusal_reports_unrendered_without_an_x11_window() {
             assert!(id.is_none_or(|(session, _)| session != "wayland-live-proof"));
         }
     }
+}
+
+#[test]
+fn the_codex_dart_points_up_left_from_the_agent_point() {
+    let dart = super::draw::codex_dart(1.0);
+    assert_eq!(dart.len(), 4);
+    let tip = dart[0];
+    assert!((1..=2).contains(&tip.x) && tip.x == tip.y, "tip on the diagonal: {tip:?}");
+    for corner in &dart[1..] {
+        assert!(corner.x >= tip.x && corner.y >= tip.y, "body trails down-right");
+        assert!(corner.x <= 15 && corner.y <= 15, "fits the 17px window");
+    }
+    let (wing_a, notch, wing_b) = (dart[1], dart[2], dart[3]);
+    assert_eq!((wing_a.x, wing_a.y), (wing_b.y, wing_b.x), "symmetric about the diagonal");
+    assert_eq!(notch.x, notch.y);
+    assert_eq!(super::draw::CODEX_FILL_COLOUR & 0xff_ffff, 0x65_0ceb);
+}
+
+#[test]
+#[ignore = "needs a private X11 desktop; run through scripts/private-session.sh"]
+fn live_x11_default_cursor_is_the_purple_codex_dart_even_with_an_accent() {
+    let dir = std::env::var("AGENT_DESKTOP_PRIVATE_SESSION").expect("private desktop");
+    let (oracle, _) = x11rb::connect(None).expect("independent X11 connection");
+    let mut style = agent_desktop_core::CursorOverlayStyle::default();
+    style.set_accent("#00FF00".into());
+    style.set_fill("#00FF00".into());
+    let config = CursorOverlayConfig::enabled(None, 8).expect("enabled config");
+    update(&CursorOverlayControl::present_with_style(
+        "codex-proof".into(),
+        CursorOverlayInstruction::new(Point { x: 200., y: 200. }, &config, false).unwrap(),
+        style,
+    ))
+    .expect("paint codex");
+    let owner = oracle
+        .intern_atom(false, b"_AGENT_DESKTOP_CURSOR_OWNER")
+        .unwrap()
+        .reply()
+        .unwrap()
+        .atom;
+    let root = oracle.setup().roots[0].root;
+    let window = oracle
+        .query_tree(root)
+        .unwrap()
+        .reply()
+        .unwrap()
+        .children
+        .into_iter()
+        .find(|window| {
+            oracle
+                .get_property(false, *window, owner, AtomEnum::STRING, 0, 1024)
+                .unwrap()
+                .reply()
+                .ok()
+                .and_then(|p| serde_json::from_slice::<(String, Option<String>)>(&p.value).ok())
+                .is_some_and(|(id, _)| id == "codex-proof")
+        })
+        .expect("codex window");
+    assert_eq!(xwd_pixel(window, 6, 6, &dir), [0x65, 0x0c, 0xeb]);
+    let shape = oracle
+        .shape_get_rectangles(window, SK::BOUNDING)
+        .unwrap()
+        .reply()
+        .unwrap()
+        .rectangles;
+    let covers = |x: i16, y: i16| {
+        shape.iter().any(|r| {
+            x >= r.x && y >= r.y && x < r.x + r.width as i16 && y < r.y + r.height as i16
+        })
+    };
+    assert!(covers(6, 6) && covers(1, 1), "the dart and its tip are shown");
+    assert!(!covers(15, 0) && !covers(0, 15) && !covers(15, 15), "corners are cut away");
+    update(&CursorOverlayControl::disable("codex-proof".into())).expect("teardown");
 }

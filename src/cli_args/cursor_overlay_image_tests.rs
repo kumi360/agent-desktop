@@ -172,3 +172,30 @@ fn a_pointer_image_is_verified_and_stored_beside_the_arrow() {
         .expect_err("missing pointer image");
     assert_eq!(error.code(), "INVALID_ARGS");
 }
+
+#[test]
+fn the_default_look_is_the_purple_codex_arrow() {
+    use agent_desktop_core::CursorLook;
+    let plain = parse(&[]).unwrap().enable.style.to_core().unwrap();
+    assert_eq!(plain.look(), CursorLook::Codex, "no --style means codex");
+    let tinted = parse(&["--accent", "#9B5CFF", "--fill", "#00FF00", "--rim", "#FF0000"])
+        .unwrap()
+        .enable
+        .style
+        .to_core()
+        .unwrap();
+    assert_eq!(
+        tinted.look(),
+        CursorLook::Codex,
+        "colour flags never turn the cursor back into the arrow"
+    );
+    for (flag, look) in [
+        ("arrow", CursorLook::Arrow),
+        ("orb", CursorLook::Orb),
+        ("CODEX", CursorLook::Codex),
+    ] {
+        let style = parse(&["--style", flag]).unwrap().enable.style.to_core().unwrap();
+        assert_eq!(style.look(), look, "--style {flag}");
+    }
+    assert!(parse(&["--style", "glass"]).is_err());
+}

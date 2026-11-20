@@ -143,6 +143,7 @@ static void ADTintPointer(void) {
     dart.strokeColor = ADColor(style->fill, 1.0);
     ADPointer.transform = CATransform3DMakeScale(style->size, style->size, 1.0);
     ADOrbApply(ADPointer.sublayers[2], @[ rim, dart ]);
+    ADCodexApply(ADPointer.sublayers[3], @[ rim, dart, ADPointer.sublayers[2] ]);
     ADOrbStylePill(ADBubblePill);
 }
 
@@ -158,12 +159,14 @@ static CALayer *ADPointerLayer(void) {
     [pointer addSublayer:rim];
     [pointer addSublayer:ADDartLayer()];
     [pointer addSublayer:ADOrbLayer(CGPointMake(1.0, 35.0))];
+    [pointer addSublayer:ADCodexLayer(CGPointMake(1.0, 35.0))];
     return pointer;
 }
 
 static void ADMoveCursor(const AgentDesktopCursorFrame *frame, double mainHeight) {
     [ADCursorWindow setFrameOrigin:NSMakePoint(frame->x - ADTipX, mainHeight - frame->y - ADTipY)];
     ADOrbTrailPush(NSMakePoint(frame->x, mainHeight - frame->y));
+    ADCodexMove(NSMakePoint(frame->x, mainHeight - frame->y));
 }
 
 static NSFont *ADLabelFont(void) {
@@ -237,12 +240,14 @@ void agent_desktop_cursor_overlay_idle(void) {
     @autoreleasepool {
         ADDragPoll();
         ADOrbTrailTick();
+        ADCodexTick();
         ADPump(NSApplication.sharedApplication);
     }
 }
 
 void agent_desktop_cursor_overlay_stop(void) {
     ADOrbTrailClear();
+    ADCodexReset();
     ADDragCancel();
     [ADCursorWindow orderOut:nil];
     [ADBubbleWindow orderOut:nil];
@@ -301,6 +306,7 @@ void agent_desktop_cursor_overlay_rest(void) {
         [ADBubbleWindow orderOut:nil];
         ADCaretStop();
         ADOrbTrailClear();
+        ADCodexReset();
         ADCursorWindow.alphaValue = 1.0;
         ADBubbleWindow.alphaValue = 1.0;
         ADTrailStop();
@@ -309,6 +315,7 @@ void agent_desktop_cursor_overlay_rest(void) {
 
 void agent_desktop_cursor_overlay_hide(void) {
     ADOrbTrailClear();
+    ADCodexReset();
     ADDragCancel();
     ADCaretStop();
     [ADCursorWindow orderOut:nil];

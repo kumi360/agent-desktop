@@ -26,9 +26,9 @@ pub struct CursorOverlayStyle {
     highlight: bool,
     #[serde(default, skip_serializing_if = "CursorImages::is_empty")]
     images: CursorImages,
-    /// The cursor's drawn look; the default arrow serializes to nothing, so
-    /// configs that never set it are unchanged.
-    #[serde(default, skip_serializing_if = "CursorLook::is_arrow")]
+    /// The cursor's drawn look; the default codex arrow serializes to nothing,
+    /// so configs that never set it stay readable by older overlay children.
+    #[serde(default, skip_serializing_if = "CursorLook::is_default")]
     look: CursorLook,
 }
 
@@ -37,16 +37,20 @@ pub struct CursorOverlayStyle {
 #[serde(rename_all = "lowercase")]
 pub enum CursorLook {
     /// The stock arrow, ripple and pill.
-    #[default]
     Arrow,
     /// A glass orb with a fading light trail, a thin-ring click pulse and a
     /// glass label pill.
     Orb,
+    /// The default: a navigation arrow in Nimbus purple with a soft purple
+    /// glow that turns to face its travel direction. Its colours are fixed, so
+    /// `--accent`, `--fill` and `--rim` do not change it.
+    #[default]
+    Codex,
 }
 
 impl CursorLook {
-    pub const fn is_arrow(&self) -> bool {
-        matches!(self, Self::Arrow)
+    pub const fn is_default(&self) -> bool {
+        matches!(self, Self::Codex)
     }
 }
 
@@ -164,7 +168,7 @@ impl Default for CursorOverlayStyle {
             ripple: true,
             highlight: true,
             images: CursorImages::default(),
-            look: CursorLook::Arrow,
+            look: CursorLook::Codex,
         }
     }
 }

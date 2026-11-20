@@ -398,3 +398,23 @@ fn a_clicked_target_rect_reaches_the_renderer() {
     assert_eq!(instruction.target(), Some(&bounds));
     assert_eq!(degenerate.target(), None);
 }
+
+#[test]
+fn the_codex_look_is_the_default_and_serializes_to_nothing() {
+    use crate::{CursorLook, CursorOverlayStyle};
+    let style = CursorOverlayStyle::default();
+    assert_eq!(style.look(), CursorLook::Codex);
+    let json = serde_json::to_value(&style).unwrap();
+    assert!(
+        json.get("look").is_none(),
+        "older overlay children deny unknown fields, so the default must not send one"
+    );
+    let back: CursorOverlayStyle = serde_json::from_value(json).unwrap();
+    assert_eq!(back.look(), CursorLook::Codex);
+    let mut arrow = CursorOverlayStyle::default();
+    arrow.set_look(CursorLook::Arrow);
+    let json = serde_json::to_value(&arrow).unwrap();
+    assert_eq!(json["look"], "arrow");
+    let back: CursorOverlayStyle = serde_json::from_value(json).unwrap();
+    assert_eq!(back.look(), CursorLook::Arrow);
+}

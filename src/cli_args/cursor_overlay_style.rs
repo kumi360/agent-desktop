@@ -30,7 +30,7 @@ pub(crate) struct CursorOverlayStyleArgs {
         long = "style",
         value_name = "LOOK",
         value_parser = parse_look,
-        help = "Cursor look: arrow (default) or orb, a glass orb with a light trail and a thin-ring click pulse"
+        help = "Cursor look: codex (default), a purple navigation arrow with a soft purple glow that turns toward where it moves; arrow, the classic arrow; or orb, a glass orb with a light trail"
     )]
     pub look: Option<CursorLook>,
     #[command(flatten)]
@@ -65,7 +65,8 @@ fn parse_look(value: &str) -> Result<CursorLook, String> {
     match value.to_ascii_lowercase().as_str() {
         "arrow" => Ok(CursorLook::Arrow),
         "orb" => Ok(CursorLook::Orb),
-        _ => Err("cursor look must be arrow or orb".to_string()),
+        "codex" => Ok(CursorLook::Codex),
+        _ => Err("cursor look must be codex, arrow or orb".to_string()),
     }
 }
 

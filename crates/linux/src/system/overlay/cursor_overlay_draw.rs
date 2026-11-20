@@ -1,5 +1,5 @@
 use agent_desktop_core::{
-    AdapterError, CursorOverlayControl, CursorOverlayStyle, Point as CursorPoint,
+    AdapterError, CursorLook, CursorOverlayControl, CursorOverlayStyle, Point as CursorPoint,
 };
 use x11rb::connection::Connection;
 use x11rb::protocol::shape::{ConnectionExt as _, SK, SO};
@@ -146,6 +146,9 @@ impl Overlay {
         if !style.images().is_empty() {
             return Err(AdapterError::not_supported("custom cursor images on X11"));
         }
+        if style.look() == CursorLook::Codex {
+            return self.paint_codex(style.size());
+        }
         let connection = &self.connection;
         let scale = style.size();
         let width = (24.0 * scale).ceil() as u16;
@@ -270,6 +273,117 @@ impl Overlay {
         Ok(())
     }
 
+    /// Paints the codex look: a purple navigation dart with a white rim, tip up
+    /// and to the left at the window origin. Its colours are fixed, so `--accent`,
+    /// `--fill` and `--rim` never recolour it. X11 without a compositor cannot
+    /// blend alpha, so the soft glow and the heading turn stay macOS only.
+    fn paint_codex(&self, scale: f64) -> Result<(), AdapterError> {
+        let connection = &self.connection;
+        let side = (CODEX_SIDE * scale).ceil() as u16;
+        let polygon = codex_dart(scale);
+        let rim = ((CODEX_RIM + CODEX_ROUND) * 2.0 * scale).round().max(1.0) as u32;
+        let round = ((CODEX_ROUND * 2.0 * scale).round().max(1.0)) as u32;
+        let mut outline = polygon.clone();
+        outline.push(polygon[0]);
+        let pixmap = connection.generate_id().map_err(error)?;
+        connection
+            .create_pixmap(32, pixmap, self.window, side, side)
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        let mask = connection.generate_id().map_err(error)?;
+        connection
+            .create_pixmap(1, mask, self.window, side, side)
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        let gc = connection.generate_id().map_err(error)?;
+        connection
+            .create_gc(gc, pixmap, &CreateGCAux::new().foreground(0))
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        let mask_gc = connection.generate_id().map_err(error)?;
+        connection
+            .create_gc(mask_gc, mask, &CreateGCAux::new().foreground(0))
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        let all = Rectangle {
+            x: 0,
+            y: 0,
+            width: side,
+            height: side,
+        };
+        connection
+            .poly_fill_rectangle(pixmap, gc, &[all])
+            .map_err(error)?;
+        connection
+            .poly_fill_rectangle(mask, mask_gc, &[all])
+            .map_err(error)?;
+        let stroke = |drawable: Drawable, gc: Gcontext, colour: u32, width: u32| {
+            connection
+                .change_gc(
+                    gc,
+                    &ChangeGCAux::new()
+                        .foreground(colour)
+                        .line_width(width)
+                        .join_style(JoinStyle::ROUND)
+                        .cap_style(CapStyle::ROUND),
+                )
+                .map_err(error)?;
+            connection
+                .poly_line(CoordMode::ORIGIN, drawable, gc, &outline)
+                .map_err(error)?;
+            connection
+                .fill_poly(drawable, gc, PolyShape::NONCONVEX, CoordMode::ORIGIN, &polygon)
+                .map_err(error)?;
+            Ok::<(), AdapterError>(())
+        };
+        stroke(mask, mask_gc, 1, rim)?;
+        stroke(pixmap, gc, CODEX_RIM_COLOUR, rim)?;
+        stroke(pixmap, gc, CODEX_FILL_COLOUR, round)?;
+        connection
+            .configure_window(
+                self.window,
+                &ConfigureWindowAux::new()
+                    .width(u32::from(side))
+                    .height(u32::from(side)),
+            )
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        connection
+            .change_window_attributes(
+                self.window,
+                &ChangeWindowAttributesAux::new().background_pixmap(pixmap),
+            )
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        connection
+            .shape_mask(SO::SET, SK::BOUNDING, self.window, 0, 0, mask)
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        connection
+            .clear_area(false, self.window, 0, 0, 0, 0)
+            .map_err(error)?
+            .check()
+            .map_err(error)?;
+        for gc in [gc, mask_gc] {
+            connection.free_gc(gc).map_err(error)?.check().map_err(error)?;
+        }
+        for pixmap in [pixmap, mask] {
+            connection
+                .free_pixmap(pixmap)
+                .map_err(error)?
+                .check()
+                .map_err(error)?;
+        }
+        Ok(())
+    }
+
     pub(super) fn retain(self, owner: &[u8]) -> Result<(), AdapterError> {
         let atom = self
             .connection
@@ -325,4 +439,42 @@ fn silhouette(polygon: &[Point], height: u16) -> Vec<Rectangle> {
             })
         })
         .collect()
+}
+
+/// The codex dart, matching the macOS bridge: wing 12, half apex 26 degrees,
+/// notch 0.78 of the wing depth, at the rest heading of -45 degrees.
+const CODEX_WING: f64 = 12.0;
+const CODEX_HALF_APEX: f64 = 26.0;
+const CODEX_NOTCH: f64 = 0.78;
+const CODEX_RIM: f64 = 1.5;
+const CODEX_ROUND: f64 = 0.5;
+const CODEX_SIDE: f64 = 17.0;
+/// #650CEB, the fill of the purple codex arrow.
+pub(super) const CODEX_FILL_COLOUR: u32 = 0xff65_0ceb;
+pub(super) const CODEX_RIM_COLOUR: u32 = 0xffff_ffff;
+
+/// The dart's vertices in window pixels. The outer edge of the rim lands on the
+/// window origin, which is the agent's point, like the macOS tip.
+pub(super) fn codex_dart(scale: f64) -> Vec<Point> {
+    let half = CODEX_HALF_APEX.to_radians();
+    let depth = CODEX_WING * half.cos();
+    let spread = CODEX_WING * half.sin();
+    let shift = CODEX_RIM + CODEX_ROUND;
+    let turn = std::f64::consts::FRAC_PI_4;
+    [
+        (0.0, 0.0),
+        (depth, spread),
+        (depth * CODEX_NOTCH, 0.0),
+        (depth, -spread),
+    ]
+    .into_iter()
+    .map(|(x, y): (f64, f64)| {
+        let x = x + shift;
+        let (rx, ry) = (x * turn.cos() - y * turn.sin(), x * turn.sin() + y * turn.cos());
+        Point {
+            x: (rx * scale).round() as i16,
+            y: (ry * scale).round() as i16,
+        }
+    })
+    .collect()
 }

@@ -13,7 +13,7 @@ typedef struct {
     uint8_t look;
 } AgentDesktopCursorStyle;
 
-enum { ADLookArrow = 0, ADLookOrb = 1 };
+enum { ADLookArrow = 0, ADLookOrb = 1, ADLookCodex = 2 };
 
 CGColorRef ADColor(const double *rgb, CGFloat alpha);
 const AgentDesktopCursorStyle *ADStyle(void);
@@ -44,3 +44,10 @@ void ADOrbTrailTick(void);
 void ADOrbTrailClear(void);
 void ADOrbPulse(NSWindow *window);
 void ADOrbStylePill(CALayer *pill);
+bool ADCodexActive(void);
+CALayer *ADCodexLayer(CGPoint tip);
+void ADCodexApply(CALayer *codex, NSArray<CALayer *> *otherLayers);
+void ADCodexMove(NSPoint point);
+void ADCodexTick(void);
+void ADCodexReset(void);
+void ADCodexPulse(NSWindow *window);

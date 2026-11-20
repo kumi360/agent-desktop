@@ -12,7 +12,7 @@ static AgentDesktopCursorStyle ADCurrentStyle = {
     .rim = {0.07, 0.07, 0.09},
     .accent = {0.26, 0.60, 1.0},
     .size = 1.0,
-    .look = ADLookArrow,
+    .look = ADLookCodex,
 };
 
 static __strong NSWindow *ADHighlightWindow = nil;
@@ -23,6 +23,8 @@ static CGMutablePathRef ADTrailPath = NULL;
 static NSRect ADTrailDesktop = {{0.0, 0.0}, {0.0, 0.0}};
 static NSPoint ADTrailLast = {0.0, 0.0};
 static NSUInteger ADTrailPointCount = 0;
+
+static CGColorRef ADAccent(CGFloat alpha);
 
 static void ADTrailRender(void) {
     CGRect bounds = CGPathGetBoundingBox(ADTrailPath);
@@ -35,12 +37,12 @@ static void ADTrailRender(void) {
         ADTrailWindow = ADWindow(frame);
         ADTrailWindow.level = ADEffectLevel;
         ADTrailLayer = [CAShapeLayer layer];
-        ADTrailLayer.fillColor = ADColor(ADCurrentStyle.accent, 0.9);
-        ADTrailLayer.strokeColor = ADColor(ADCurrentStyle.accent, 0.9);
+        ADTrailLayer.fillColor = ADAccent(0.9);
+        ADTrailLayer.strokeColor = ADAccent(0.9);
         ADTrailLayer.lineWidth = 4.0;
         ADTrailLayer.lineCap = kCALineCapRound;
         ADTrailLayer.lineJoin = kCALineJoinRound;
-        ADTrailLayer.shadowColor = ADColor(ADCurrentStyle.accent, 1.0);
+        ADTrailLayer.shadowColor = ADAccent(1.0);
         ADTrailLayer.shadowOpacity = 0.45;
         ADTrailLayer.shadowRadius = 6.0;
         ADFreezeLayer(ADTrailLayer);
@@ -59,6 +61,16 @@ static void ADTrailRender(void) {
 
 CGColorRef ADColor(const double *rgb, CGFloat alpha) {
     return [NSColor colorWithSRGBRed:rgb[0] green:rgb[1] blue:rgb[2] alpha:alpha].CGColor;
+}
+
+// The effect colour. The codex look is always Nimbus purple (#9B5CFF), so a
+// caller's --accent cannot turn its highlight, caret or trail back to blue.
+static CGColorRef ADAccent(CGFloat alpha) {
+    static const double ADCodexPurple[3] = {155.0 / 255.0, 92.0 / 255.0, 1.0};
+    if (ADCurrentStyle.look == ADLookCodex) {
+        return ADColor(ADCodexPurple, alpha);
+    }
+    return ADColor(ADCurrentStyle.accent, alpha);
 }
 
 const AgentDesktopCursorStyle *ADStyle(void) {
@@ -149,14 +161,18 @@ void ADRipplePlay(NSWindow *window) {
         ADOrbPulse(window);
         return;
     }
+    if (ADCodexActive()) {
+        ADCodexPulse(window);
+        return;
+    }
     NSArray<CALayer *> *layers = window.contentView.layer.sublayers;
     [window orderFrontRegardless];
     for (NSUInteger index = 0; index < ADRippleRings + 1 && index < layers.count; index += 1) {
         CAShapeLayer *layer = (CAShapeLayer *)layers[index];
         [layer removeAllAnimations];
-        layer.fillColor = index == 0 ? ADColor(ADCurrentStyle.accent, 1.0)
+        layer.fillColor = index == 0 ? ADAccent(1.0)
                                      : NSColor.clearColor.CGColor;
-        layer.strokeColor = ADColor(ADCurrentStyle.accent, 1.0);
+        layer.strokeColor = ADAccent(1.0);
         CAKeyframeAnimation *opacity =
             [CAKeyframeAnimation animationWithKeyPath:@"opacity"];
         opacity.values = index == 0 ? @[ @0.0, @0.42, @0.0 ] : @[ @0.0, @0.9, @0.0 ];
@@ -200,9 +216,9 @@ void ADHighlightShow(NSRect frame, double seconds) {
         ADFreezeLayer(ADHighlightBorder);
         [ADHighlightWindow.contentView.layer addSublayer:ADHighlightBorder];
     }
-    ADHighlightBorder.borderColor = ADColor(ADCurrentStyle.accent, 1.0);
-    ADHighlightBorder.backgroundColor = ADColor(ADCurrentStyle.accent, 0.10);
-    ADHighlightBorder.shadowColor = ADColor(ADCurrentStyle.accent, 1.0);
+    ADHighlightBorder.borderColor = ADAccent(1.0);
+    ADHighlightBorder.backgroundColor = ADAccent(0.10);
+    ADHighlightBorder.shadowColor = ADAccent(1.0);
     ADHighlightBorder.shadowOpacity = 0.5;
     ADHighlightBorder.shadowRadius = 10.0;
     ADHighlightBorder.shadowOffset = CGSizeZero;
@@ -236,7 +252,7 @@ void ADCaretShow(NSRect frame) {
         ADFreezeLayer(ADCaretBar);
         [ADCaretWindow.contentView.layer addSublayer:ADCaretBar];
     }
-    ADCaretBar.backgroundColor = ADColor(ADCurrentStyle.accent, 1.0);
+    ADCaretBar.backgroundColor = ADAccent(1.0);
     [ADCaretWindow setFrame:frame display:NO];
     ADCaretBar.frame = CGRectMake(0.0, 0.0, frame.size.width, frame.size.height);
     [ADCaretWindow orderFrontRegardless];

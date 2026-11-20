@@ -230,6 +230,7 @@ pub(super) fn apply_style(style: &CursorOverlayStyle, image_changed: bool) {
         look: match style.look() {
             CursorLook::Arrow => 0,
             CursorLook::Orb => 1,
+            CursorLook::Codex => 2,
         },
     };
     unsafe { agent_desktop_cursor_overlay_style(&native) }
