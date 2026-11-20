@@ -42,13 +42,37 @@ mod imp {
                 .ok_or_else(|| AdapterError::internal("Window deadline is out of range"))?,
         )?;
         let work_area = crate::system::display_work_area::for_window(current, deadline)?;
-        set_position(el, work_area.x, work_area.y, deadline)?;
-        set_size(el, work_area.width, work_area.height, deadline).map_err(|error| {
-            crate::actions::DeliveryTracker::from_delivered_units(1).annotate(error)
-        })
+        let postcondition = crate::system::window::window_postcondition::wait_for_work_area;
+        write_position(el, work_area.x, work_area.y, deadline)?;
+        postcondition(el, work_area, false, deadline)
+            .and_then(|()| write_size(el, work_area.width, work_area.height, deadline))
+            .and_then(|()| postcondition(el, work_area, true, deadline))
+            .map_err(|error| {
+                crate::actions::DeliveryTracker::from_delivered_units(1).annotate(error)
+            })
     }
 
     fn set_size(
+        el: &crate::tree::AXElement,
+        width: f64,
+        height: f64,
+        deadline: Deadline,
+    ) -> Result<(), AdapterError> {
+        write_size(el, width, height, deadline)?;
+        crate::system::window::window_postcondition::wait_for_geometry(
+            el,
+            agent_desktop_core::Rect {
+                x: 0.0,
+                y: 0.0,
+                width,
+                height,
+            },
+            false,
+            deadline,
+        )
+    }
+
+    fn write_size(
         el: &crate::tree::AXElement,
         width: f64,
         height: f64,
@@ -70,21 +94,30 @@ mod imp {
             ax_value.as_CFTypeRef(),
             deadline,
         )?;
-        finish(el, err, "resize window", deadline)?;
+        finish(el, err, "resize window", deadline)
+    }
+
+    fn set_position(
+        el: &crate::tree::AXElement,
+        x: f64,
+        y: f64,
+        deadline: Deadline,
+    ) -> Result<(), AdapterError> {
+        write_position(el, x, y, deadline)?;
         crate::system::window::window_postcondition::wait_for_geometry(
             el,
             agent_desktop_core::Rect {
-                x: 0.0,
-                y: 0.0,
-                width,
-                height,
+                x,
+                y,
+                width: 0.0,
+                height: 0.0,
             },
-            false,
+            true,
             deadline,
         )
     }
 
-    fn set_position(
+    fn write_position(
         el: &crate::tree::AXElement,
         x: f64,
         y: f64,
@@ -108,18 +141,7 @@ mod imp {
             ax_value.as_CFTypeRef(),
             deadline,
         )?;
-        finish(el, err, "move window", deadline)?;
-        crate::system::window::window_postcondition::wait_for_geometry(
-            el,
-            agent_desktop_core::Rect {
-                x,
-                y,
-                width: 0.0,
-                height: 0.0,
-            },
-            true,
-            deadline,
-        )
+        finish(el, err, "move window", deadline)
     }
 
     fn set_minimized(
