@@ -6,7 +6,7 @@
 //! drawn never changes a command's result.
 
 use agent_desktop_core::{
-    PlatformAdapter, Rect, WindowFilter, context::CommandContext, present_window_cue,
+    PlatformAdapter, Rect, WindowFilter, WindowInfo, context::CommandContext, present_window_cue,
 };
 use serde_json::Value;
 
@@ -44,9 +44,10 @@ pub(super) fn after(
         .as_ref()
         .and_then(|(_, name)| name.clone())
         .or_else(|| app.map(str::to_owned));
+    let target = reported_target_window(result);
     let bounds = found
         .and_then(|(bounds, _)| bounds)
-        .or_else(|| lookup(adapter, app_name.as_deref(), None));
+        .or_else(|| lookup(adapter, app_name.as_deref(), target));
     if let Some(bounds) = bounds {
         present_window_cue(adapter, context, &bounds, &narration(app_name.as_deref()));
     }
@@ -73,10 +74,35 @@ fn lookup(
         app: app.map(str::to_owned),
     };
     let windows = adapter.list_windows(&filter, deadline).ok()?;
-    windows
-        .into_iter()
-        .filter(|window| window_id.is_none_or(|id| window.id == id))
-        .find_map(|window| window.bounds)
+    pick(&windows, window_id)
+}
+
+/// The window a cue should point at: the one with the given id, or else the
+/// app's largest window. The first listed window can be a tiny floating
+/// affordance, such as the Writing Tools button, and a cue on it looks lost.
+fn pick(windows: &[WindowInfo], window_id: Option<&str>) -> Option<Rect> {
+    let sized = || {
+        windows
+            .iter()
+            .filter_map(|window| window.bounds.map(|b| (window, b)))
+    };
+    if let Some(id) = window_id
+        && let Some((_, bounds)) = sized().find(|(window, _)| window.id == id)
+    {
+        return Some(bounds);
+    }
+    sized()
+        .map(|(_, bounds)| bounds)
+        .max_by(|a, b| (a.width * a.height).total_cmp(&(b.width * b.height)))
+}
+
+/// The id of the window a result names as its target, such as move-window's
+/// `target: {kind: "window", id: "w-1"}`.
+fn reported_target_window(value: &Value) -> Option<&str> {
+    let target = value.get("target")?;
+    (target.get("kind").and_then(Value::as_str) == Some("window"))
+        .then(|| target.get("id").and_then(Value::as_str))
+        .flatten()
 }
 
 /// Finds the first object in a result that describes a window, by its
