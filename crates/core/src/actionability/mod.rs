@@ -15,6 +15,7 @@ mod stability;
 mod stability_evidence;
 pub(crate) mod stability_sampler;
 mod status;
+pub(crate) mod visible_target;
 
 #[cfg(test)]
 pub(crate) use check::ActionabilityCheck;

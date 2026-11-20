@@ -129,6 +129,14 @@ impl ObservationOps for MacOSAdapter {
         )
     }
 
+    fn target_visibility(
+        &self,
+        handle: &NativeHandle,
+        deadline: Deadline,
+    ) -> Result<agent_desktop_core::TargetVisibility, AdapterError> {
+        crate::tree::target_visibility::target_visibility(ax_element(handle)?, deadline)
+    }
+
     fn hit_test(
         &self,
         handle: &NativeHandle,

@@ -18,6 +18,7 @@ pub(crate) mod ref_action_wait;
 pub(crate) mod ref_action_wait_context;
 pub(crate) mod ref_action_wait_evidence;
 pub(crate) mod ref_action_wait_support;
+mod visible_preflight;
 
 const TRACE_CAPTURE_BUDGET_MS: u64 = 1_000;
 const PRE_CAPTURE_DISPATCH_RESERVE_MS: u64 = 100;
@@ -88,7 +89,7 @@ pub(crate) fn dispatch_resolved_landing(
         })?;
     crate::ref_action::ref_action_wait_support::trace_resolve_ok(target.context, target.ref_id);
     let initial_target = ResolvedRefAction::new(target, &handle);
-    let preflight = match stable_preflight(&initial_target, &request) {
+    let preflight = match visible_preflight::gated(&initial_target, &request) {
         Ok(preflight) => preflight,
         Err(error) => {
             let error = mark_pre_dispatch_resolution_failure(into_adapter_error(error));
@@ -121,7 +122,7 @@ pub(crate) fn dispatch_resolved_landing(
                 }
             };
             let scrolled_target = ResolvedRefAction::new(target, &handle);
-            stable_preflight(&scrolled_target, &request)
+            visible_preflight::gated(&scrolled_target, &request)
                 .map_err(|error| after_scroll(into_adapter_error(error)))?
         }
     };
@@ -338,9 +339,8 @@ fn check_actionability_with_trace(
 }
 
 /// Builds a stable, non-sensitive trace label from a `RefEntry`. The label
-/// is derived from role and path indices only — no content fields — so it is
-/// safe to emit in the `"ref"` trace key without redaction risk. Path indices
-/// are deterministic within a snapshot but carry no secret information.
+/// is derived from role and path indices only (no content fields), so it is
+/// safe to emit in the `"ref"` trace key without redaction risk.
 fn ref_label_from_entry(entry: &RefEntry) -> String {
     if entry.scope.path.is_empty() {
         return format!("<{}>", entry.identity.role);

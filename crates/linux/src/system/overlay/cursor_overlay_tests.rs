@@ -211,13 +211,23 @@ fn the_codex_dart_points_up_left_from_the_agent_point() {
     let dart = super::draw::codex_dart(1.0);
     assert_eq!(dart.len(), 4);
     let tip = dart[0];
-    assert!((1..=2).contains(&tip.x) && tip.x == tip.y, "tip on the diagonal: {tip:?}");
+    assert!(
+        (1..=2).contains(&tip.x) && tip.x == tip.y,
+        "tip on the diagonal: {tip:?}"
+    );
     for corner in &dart[1..] {
-        assert!(corner.x >= tip.x && corner.y >= tip.y, "body trails down-right");
+        assert!(
+            corner.x >= tip.x && corner.y >= tip.y,
+            "body trails down-right"
+        );
         assert!(corner.x <= 15 && corner.y <= 15, "fits the 17px window");
     }
     let (wing_a, notch, wing_b) = (dart[1], dart[2], dart[3]);
-    assert_eq!((wing_a.x, wing_a.y), (wing_b.y, wing_b.x), "symmetric about the diagonal");
+    assert_eq!(
+        (wing_a.x, wing_a.y),
+        (wing_b.y, wing_b.x),
+        "symmetric about the diagonal"
+    );
     assert_eq!(notch.x, notch.y);
     assert_eq!(super::draw::CODEX_FILL_COLOUR & 0xff_ffff, 0x65_0ceb);
 }
@@ -269,11 +279,17 @@ fn live_x11_default_cursor_is_the_purple_codex_dart_even_with_an_accent() {
         .unwrap()
         .rectangles;
     let covers = |x: i16, y: i16| {
-        shape.iter().any(|r| {
-            x >= r.x && y >= r.y && x < r.x + r.width as i16 && y < r.y + r.height as i16
-        })
+        shape
+            .iter()
+            .any(|r| x >= r.x && y >= r.y && x < r.x + r.width as i16 && y < r.y + r.height as i16)
     };
-    assert!(covers(6, 6) && covers(1, 1), "the dart and its tip are shown");
-    assert!(!covers(15, 0) && !covers(0, 15) && !covers(15, 15), "corners are cut away");
+    assert!(
+        covers(6, 6) && covers(1, 1),
+        "the dart and its tip are shown"
+    );
+    assert!(
+        !covers(15, 0) && !covers(0, 15) && !covers(15, 15),
+        "corners are cut away"
+    );
     update(&CursorOverlayControl::disable("codex-proof".into())).expect("teardown");
 }

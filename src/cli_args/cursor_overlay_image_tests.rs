@@ -178,12 +178,14 @@ fn the_default_look_is_the_purple_codex_arrow() {
     use agent_desktop_core::CursorLook;
     let plain = parse(&[]).unwrap().enable.style.to_core().unwrap();
     assert_eq!(plain.look(), CursorLook::Codex, "no --style means codex");
-    let tinted = parse(&["--accent", "#9B5CFF", "--fill", "#00FF00", "--rim", "#FF0000"])
-        .unwrap()
-        .enable
-        .style
-        .to_core()
-        .unwrap();
+    let tinted = parse(&[
+        "--accent", "#9B5CFF", "--fill", "#00FF00", "--rim", "#FF0000",
+    ])
+    .unwrap()
+    .enable
+    .style
+    .to_core()
+    .unwrap();
     assert_eq!(
         tinted.look(),
         CursorLook::Codex,
@@ -194,7 +196,12 @@ fn the_default_look_is_the_purple_codex_arrow() {
         ("orb", CursorLook::Orb),
         ("CODEX", CursorLook::Codex),
     ] {
-        let style = parse(&["--style", flag]).unwrap().enable.style.to_core().unwrap();
+        let style = parse(&["--style", flag])
+            .unwrap()
+            .enable
+            .style
+            .to_core()
+            .unwrap();
         assert_eq!(style.look(), look, "--style {flag}");
     }
     assert!(parse(&["--style", "glass"]).is_err());

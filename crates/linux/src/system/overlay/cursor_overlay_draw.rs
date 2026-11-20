@@ -336,7 +336,13 @@ impl Overlay {
                 .poly_line(CoordMode::ORIGIN, drawable, gc, &outline)
                 .map_err(error)?;
             connection
-                .fill_poly(drawable, gc, PolyShape::NONCONVEX, CoordMode::ORIGIN, &polygon)
+                .fill_poly(
+                    drawable,
+                    gc,
+                    PolyShape::NONCONVEX,
+                    CoordMode::ORIGIN,
+                    &polygon,
+                )
                 .map_err(error)?;
             Ok::<(), AdapterError>(())
         };
@@ -372,7 +378,11 @@ impl Overlay {
             .check()
             .map_err(error)?;
         for gc in [gc, mask_gc] {
-            connection.free_gc(gc).map_err(error)?.check().map_err(error)?;
+            connection
+                .free_gc(gc)
+                .map_err(error)?
+                .check()
+                .map_err(error)?;
         }
         for pixmap in [pixmap, mask] {
             connection
@@ -470,7 +480,10 @@ pub(super) fn codex_dart(scale: f64) -> Vec<Point> {
     .into_iter()
     .map(|(x, y): (f64, f64)| {
         let x = x + shift;
-        let (rx, ry) = (x * turn.cos() - y * turn.sin(), x * turn.sin() + y * turn.cos());
+        let (rx, ry) = (
+            x * turn.cos() - y * turn.sin(),
+            x * turn.sin() + y * turn.cos(),
+        );
         Point {
             x: (rx * scale).round() as i16,
             y: (ry * scale).round() as i16,

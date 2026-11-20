@@ -385,3 +385,6 @@ mod disabled_offscreen_tests;
 
 #[path = "ref_action_keyboard_tests.rs"]
 mod keyboard_tests;
+
+#[path = "ref_action_visible_target_tests.rs"]
+mod visible_target_tests;

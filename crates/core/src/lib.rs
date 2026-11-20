@@ -35,7 +35,7 @@ pub use actions::step_mechanism::StepMechanism;
 pub use adapter::PlatformAdapter;
 pub use adapter::actions::ActionOps;
 pub use adapter::adapter_session::AdapterSession;
-pub use adapter::hit_test::HitTestResult;
+pub use adapter::hit_test::{HitTestResult, TargetVisibility};
 pub use adapter::input::InputOps;
 pub use adapter::live_element::LiveElement;
 pub use adapter::live_identity::LiveIdentity;

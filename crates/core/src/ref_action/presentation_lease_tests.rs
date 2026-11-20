@@ -119,7 +119,7 @@ fn headless_travel_runs_before_the_lease_so_cursors_do_not_queue_behind_it() {
 }
 
 #[test]
-fn a_target_that_moved_since_the_snapshot_gets_a_short_travel_under_the_lease() {
+fn a_target_that_moved_since_the_snapshot_travels_to_where_it_is_now() {
     let adapter = LeaseOrderAdapter::default();
     let stored = Rect {
         x: 101.0,
@@ -138,12 +138,12 @@ fn a_target_that_moved_since_the_snapshot_gets_a_short_travel_under_the_lease() 
     assert_eq!(
         *adapter.events.lock().unwrap(),
         [
-            Event::Travel(Point { x: 111.0, y: 11.0 }),
-            Event::Lease,
             Event::Travel(live_center.clone()),
+            Event::Lease,
             Event::Dispatch,
             Event::Effect(live_center),
-        ]
+        ],
+        "the snapshot's stored place is stale and never drawn"
     );
 }
 

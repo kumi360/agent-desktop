@@ -68,32 +68,28 @@ pub(super) fn before_lease(
     }
 }
 
+/// Where the cursor heads before the lease: the centre of the element's live,
+/// on-screen part. The snapshot's stored bounds are never used, because the
+/// window may have moved, scrolled, closed or been covered since the snapshot,
+/// and heading there draws the cursor over whatever is now in that place. A
+/// target proven hidden gets no travel; the gate under the lease refuses it.
 fn target_center(
     context: super::ref_action_wait_context::RefActionWaitContext<'_>,
     deadline: crate::Deadline,
 ) -> Option<crate::Point> {
-    let geometry = &context.entry.geometry;
-    let stored = matches!(
-        geometry.bounds_space,
-        None | Some(crate::BoundsSpace::Screen)
-    )
-    .then_some(geometry.bounds.as_ref())
-    .flatten()
-    .and_then(center_of);
-    stored.or_else(|| {
-        let handle = crate::refs::resolve_saved_ref::land_saved_ref(
-            context.adapter,
-            context.entry,
-            deadline,
-        )
-        .ok()?;
-        let bounds = context
+    let handle =
+        crate::refs::resolve_saved_ref::land_saved_ref(context.adapter, context.entry, deadline)
+            .ok()?;
+    match context.adapter.target_visibility(&handle, deadline).ok()? {
+        crate::TargetVisibility::Visible { bounds } => center_of(&bounds),
+        crate::TargetVisibility::Hidden { .. } => None,
+        crate::TargetVisibility::Unknown => context
             .adapter
             .get_element_bounds(&handle, deadline)
             .ok()
-            .flatten()?;
-        center_of(&bounds)
-    })
+            .flatten()
+            .and_then(|bounds| center_of(&bounds)),
+    }
 }
 
 pub(crate) fn enters_text(action: &Action) -> bool {
@@ -126,6 +122,13 @@ pub(super) fn effect_ripples(target: &ResolvedRefAction<'_>, action: &Action) ->
     !focused
 }
 
+fn contains(bounds: &crate::Rect, point: &crate::Point) -> bool {
+    point.x >= bounds.x
+        && point.y >= bounds.y
+        && point.x <= bounds.x + bounds.width
+        && point.y <= bounds.y + bounds.height
+}
+
 fn center_of(bounds: &crate::Rect) -> Option<crate::Point> {
     bounds.validate().ok()?;
     (bounds.width > 0.0 && bounds.height > 0.0).then(|| crate::Point {
@@ -156,9 +159,15 @@ pub(super) fn after_dispatch(
     if !crate::cursor_overlay::confirms_delivery(disposition) {
         return;
     }
+    let planned = destination(preflight);
     let Some(destination) = travelled
         .map(|(x, y)| crate::Point { x, y })
-        .or_else(|| destination(preflight))
+        .filter(|point| {
+            preflight
+                .presentation_bounds
+                .map_or(planned.is_some(), |bounds| contains(&bounds, point))
+        })
+        .or(planned)
     else {
         return;
     };

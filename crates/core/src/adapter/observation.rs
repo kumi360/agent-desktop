@@ -297,6 +297,18 @@ pub trait ObservationOps: Send + Sync {
         None
     }
 
+    /// The part of the element that is on screen right now. See
+    /// [`crate::adapter::hit_test::TargetVisibility`]. Adapters that cannot
+    /// observe clipping or display geometry report `Unknown`.
+    fn target_visibility(
+        &self,
+        handle: &NativeHandle,
+        deadline: Deadline,
+    ) -> Result<crate::adapter::hit_test::TargetVisibility, AdapterError> {
+        let _ = (handle, deadline);
+        Ok(crate::adapter::hit_test::TargetVisibility::Unknown)
+    }
+
     fn hit_test(
         &self,
         handle: &NativeHandle,
