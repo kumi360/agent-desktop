@@ -24,14 +24,27 @@ fn every_step_says_its_verb_and_target_before_it_acts() {
 
 #[test]
 fn typing_names_the_field_or_falls_back_to_the_app() {
-    let unnamed = entry(None, Some("TextEdit"));
+    let mut field = crate::adapter::minimal_ref_entry("textarea", None);
+    field.source.source_app = Some("TextEdit".into());
     assert_eq!(
-        narration(&unnamed, &Action::TypeText("hi".into())),
+        narration(&field, &Action::TypeText("hi".into())),
         "Typing into TextEdit"
     );
-    let bare = entry(None, None);
+    let bare = crate::adapter::minimal_ref_entry("group", None);
     assert_eq!(narration(&bare, &Action::TypeText("hi".into())), "Typing");
     assert_eq!(narration(&bare, &Action::Click), "Clicking");
+}
+
+#[test]
+fn an_unnamed_control_is_described_by_its_kind_not_only_the_app() {
+    let mut title = crate::adapter::minimal_ref_entry("menubutton", None);
+    title.source.source_app = Some("TextEdit".into());
+    assert_eq!(
+        narration(&title, &Action::Click),
+        "Clicking the menu button in TextEdit"
+    );
+    let bare = entry(None, None);
+    assert_eq!(narration(&bare, &Action::Click), "Clicking the button");
 }
 
 #[test]

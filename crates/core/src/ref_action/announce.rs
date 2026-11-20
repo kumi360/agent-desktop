@@ -14,7 +14,11 @@ pub(super) fn narration(entry: &RefEntry, action: &Action) -> String {
         .as_deref()
         .map(str::trim)
         .filter(|app| !app.is_empty());
-    let target = name.as_deref().or(app);
+    let described = name
+        .is_none()
+        .then(|| unnamed(&entry.identity.role, app))
+        .flatten();
+    let target = name.as_deref().or(described.as_deref()).or(app);
     let phrase = |verb: &str| match target {
         Some(target) => format!("{verb} {target}"),
         None => verb.to_owned(),
@@ -67,6 +71,31 @@ fn element_name(entry: &RefEntry) -> Option<String> {
         .map(str::trim)
         .filter(|name| !name.is_empty())
         .map(clip)
+}
+
+/// An element with no name is described by what kind of control it is, such
+/// as "the menu button in TextEdit", so the label says what will be pressed
+/// rather than only which app. Text fields and containers keep the app name:
+/// "Typing into TextEdit" already says where the text goes.
+fn unnamed(role: &str, app: Option<&str>) -> Option<String> {
+    let kind = match role.trim().to_ascii_lowercase().as_str() {
+        "button" => "button",
+        "menubutton" => "menu button",
+        "popupbutton" => "pop-up menu",
+        "checkbox" => "checkbox",
+        "radiobutton" => "option",
+        "tab" => "tab",
+        "link" => "link",
+        "slider" => "slider",
+        "combobox" => "combo box",
+        "menuitem" => "menu item",
+        "image" => "image",
+        _ => return None,
+    };
+    Some(match app {
+        Some(app) => format!("the {kind} in {app}"),
+        None => format!("the {kind}"),
+    })
 }
 
 fn clip(text: &str) -> String {
