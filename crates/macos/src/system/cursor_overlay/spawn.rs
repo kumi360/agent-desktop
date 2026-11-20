@@ -19,7 +19,7 @@ pub(crate) fn update(control: &CursorOverlayControl) -> Result<(), AdapterError>
         return broadcast(control);
     }
     if !control.is_transient()
-        && !super::child::session_active(control.session_id(), control.agent_id())
+        && !super::lifecycle::session_active(control.session_id(), control.agent_id())
     {
         return Ok(());
     }
@@ -44,9 +44,10 @@ pub(crate) fn update(control: &CursorOverlayControl) -> Result<(), AdapterError>
     if send_until(&socket, control, deadline)? {
         return Ok(());
     }
-    if !super::child::session_active(control.session_id(), control.agent_id()) {
+    if !super::lifecycle::session_active(control.session_id(), control.agent_id()) {
         return Ok(());
     }
+    super::lifecycle::retire_other_overlays(control.session_id());
     spawn(&socket, control, deadline)
 }
 

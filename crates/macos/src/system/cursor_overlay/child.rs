@@ -37,7 +37,7 @@ pub(crate) fn entry_from_env() -> Option<Result<(), AdapterError>> {
 
 fn run() -> Result<(), AdapterError> {
     let initial = read_control(std::io::stdin())?;
-    if !session_active(initial.session_id(), initial.agent_id()) {
+    if !super::lifecycle::session_active(initial.session_id(), initial.agent_id()) {
         return Ok(());
     }
     let socket = socket_path(&initial)?;
@@ -60,9 +60,18 @@ fn run() -> Result<(), AdapterError> {
     })?;
     let mut quiet_since = std::time::Instant::now();
     let mut checked_session = quiet_since;
+    let build = super::lifecycle::BuildIdentity::current();
+    let idle_exit = super::lifecycle::idle_exit_for(initial.session_id());
     loop {
         if checked_session.elapsed() >= Duration::from_secs(1) {
-            if !session_active(initial.session_id(), initial.agent_id()) {
+            if !super::lifecycle::session_active(initial.session_id(), initial.agent_id())
+                || super::lifecycle::should_retire(
+                    build.as_ref(),
+                    quiet_since.elapsed(),
+                    idle_exit,
+                    bridge::drag_active(),
+                )
+            {
                 return cleanup(socket);
             }
             checked_session = std::time::Instant::now();
@@ -350,17 +359,6 @@ fn socket_path(control: &CursorOverlayControl) -> Result<PathBuf, AdapterError> 
         ));
     }
     Ok(expected)
-}
-
-pub(super) fn session_active(session_id: &str, agent_id: Option<&str>) -> bool {
-    agent_desktop_core::session::read_manifest(session_id)
-        .ok()
-        .flatten()
-        .is_some_and(|manifest| {
-            manifest.ended_at.is_none()
-                && manifest.cursor_overlay.is_enabled()
-                && !(manifest.cursor_overlay.is_multi_agent() && agent_id.is_none())
-        })
 }
 
 fn prepare_socket(path: &Path) -> Result<(), AdapterError> {

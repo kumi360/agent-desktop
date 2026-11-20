@@ -59,6 +59,31 @@ fn socket_for_name(root: &Path, name: String) -> PathBuf {
     }
 }
 
+/// Every directory an overlay socket of this user can live in, newest
+/// protocol or not: the state root, and the short private fallback when it
+/// exists and is private.
+pub(super) fn socket_directories() -> Result<Vec<PathBuf>, AdapterError> {
+    let root = session::agent_desktop_dir()
+        .map_err(|error| AdapterError::new(ErrorCode::InvalidArgs, error.to_string()))?;
+    let fallback = private_fallback_root();
+    Ok(if validate_private_directory(&fallback).unwrap_or(false) {
+        vec![root, fallback]
+    } else {
+        vec![root]
+    })
+}
+
+/// The file-name prefix every current-protocol socket of `session_id` has,
+/// its per-agent sockets included.
+pub(super) fn session_prefix(session_id: &str) -> Result<String, AdapterError> {
+    let root = session::agent_desktop_dir()
+        .map_err(|error| AdapterError::new(ErrorCode::InvalidArgs, error.to_string()))?;
+    Ok(format!(
+        ".cursor-overlay-{:016x}",
+        endpoint_hash(&root, session_id, Some(PROTOCOL_VERSION))
+    ))
+}
+
 fn private_fallback_root() -> PathBuf {
     PathBuf::from("/tmp").join(format!("agent-desktop-{}", unsafe { libc::geteuid() }))
 }
@@ -135,7 +160,7 @@ fn validate_socket_path(path: &Path) -> Result<(), AdapterError> {
     Ok(())
 }
 
-fn is_private_socket(path: &Path) -> bool {
+pub(super) fn is_private_socket(path: &Path) -> bool {
     std::fs::symlink_metadata(path).is_ok_and(|metadata| {
         !metadata.file_type().is_symlink()
             && metadata.file_type().is_socket()
