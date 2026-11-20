@@ -87,3 +87,9 @@ fn the_peer_pid_of_a_connected_socket_is_read_from_the_kernel() {
     let (a, _b) = UnixStream::pair().unwrap();
     assert_eq!(peer_pid(&a), Some(std::process::id() as i32));
 }
+
+#[test]
+fn only_a_session_ended_on_purpose_counts_as_completed() {
+    assert!(!session_completed(agent_desktop_core::AMBIENT_CURSOR_ID));
+    assert!(!session_completed("no-such-session-for-this-test"));
+}

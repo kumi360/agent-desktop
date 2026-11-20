@@ -79,8 +79,9 @@ fn run() -> Result<(), AdapterError> {
                     bridge::drag_active(),
                 )
             {
-                if ended && session {
-                    super::session_flow::farewell(state.at.as_ref());
+                if session {
+                    let completed = super::lifecycle::session_completed(initial.session_id());
+                    super::session_flow::farewell(state.at.as_ref(), completed);
                 }
                 return cleanup(socket);
             }
@@ -104,7 +105,8 @@ fn run() -> Result<(), AdapterError> {
                 if control.is_disable() {
                     drop(listener);
                     if session {
-                        super::session_flow::farewell(state.at.as_ref());
+                        let completed = super::lifecycle::session_completed(initial.session_id());
+                        super::session_flow::farewell(state.at.as_ref(), completed);
                     }
                     cleanup(socket)?;
                     let _ = stream.write_all(&[1]);

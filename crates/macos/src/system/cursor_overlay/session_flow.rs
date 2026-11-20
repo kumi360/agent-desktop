@@ -60,16 +60,27 @@ pub(super) fn open(
     Ok(())
 }
 
-/// The closing note, held, then a calm fade. Nothing is drawn when the
-/// cursor was never placed.
-pub(super) fn farewell(at: Option<&Point>) {
+/// The closing note, held, then a calm fade, for a session that completed.
+/// A session that expired or was switched off fades without the note, so the
+/// screen never claims a task finished when it did not. Nothing is drawn when
+/// the cursor was never placed.
+pub(super) fn farewell(at: Option<&Point>, completed: bool) {
     let Some(at) = at else {
         return;
     };
-    let Ok(note) = still(at, Some(CURSOR_FAREWELL)) else {
+    let Ok((screen, fps, reduce_motion)) = bridge::screen_at(at) else {
         return;
     };
-    let Ok((screen, fps, reduce_motion)) = bridge::screen_at(at) else {
+    let fade = if reduce_motion {
+        0.2
+    } else {
+        FAREWELL_FADE_SECONDS
+    };
+    if !completed {
+        bridge::fade_out(fade);
+        return;
+    }
+    let Ok(note) = still(at, Some(CURSOR_FAREWELL)) else {
         return;
     };
     let pace = RenderPace {
@@ -82,11 +93,7 @@ pub(super) fn farewell(at: Option<&Point>) {
         return;
     }
     bridge::hold(Duration::from_millis(CURSOR_FAREWELL_HOLD_MS));
-    bridge::fade_out(if reduce_motion {
-        0.2
-    } else {
-        FAREWELL_FADE_SECONDS
-    });
+    bridge::fade_out(fade);
 }
 
 fn landing_file() -> Option<PathBuf> {

@@ -219,6 +219,17 @@ pub(super) fn session_active(session_id: &str, agent_id: Option<&str>) -> bool {
         })
 }
 
+/// Whether the session was ended on purpose (`session end` records when),
+/// rather than expired, deleted underneath or switched off. Only a completed
+/// session says so on screen; any other leaves with a quiet fade.
+pub(super) fn session_completed(session_id: &str) -> bool {
+    session_id != agent_desktop_core::AMBIENT_CURSOR_ID
+        && agent_desktop_core::session::read_manifest(session_id)
+            .ok()
+            .flatten()
+            .is_some_and(|manifest| manifest.ended_at.is_some())
+}
+
 /// Waits up to `timeout` for the next control, waking as soon as one
 /// connects, so a control is drawn within the frame it was sent in rather
 /// than after a fixed sleep.
