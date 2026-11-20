@@ -135,13 +135,15 @@ static CAShapeLayer *ADDartLayer(void) {
 
 static void ADTintPointer(void) {
     const AgentDesktopCursorStyle *style = ADStyle();
-    CAShapeLayer *rim = (CAShapeLayer *)ADPointer.sublayers.firstObject;
-    CAShapeLayer *dart = (CAShapeLayer *)ADPointer.sublayers.lastObject;
+    CAShapeLayer *rim = (CAShapeLayer *)ADPointer.sublayers[0];
+    CAShapeLayer *dart = (CAShapeLayer *)ADPointer.sublayers[1];
     rim.fillColor = ADColor(style->rim, 1.0);
     rim.strokeColor = ADColor(style->rim, 1.0);
     dart.fillColor = ADColor(style->fill, 1.0);
     dart.strokeColor = ADColor(style->fill, 1.0);
     ADPointer.transform = CATransform3DMakeScale(style->size, style->size, 1.0);
+    ADOrbApply(ADPointer.sublayers[2], @[ rim, dart ]);
+    ADOrbStylePill(ADBubblePill);
 }
 
 static CALayer *ADPointerLayer(void) {
@@ -155,11 +157,13 @@ static CALayer *ADPointerLayer(void) {
     rim.shadowOpacity = 0.34;
     [pointer addSublayer:rim];
     [pointer addSublayer:ADDartLayer()];
+    [pointer addSublayer:ADOrbLayer(CGPointMake(1.0, 35.0))];
     return pointer;
 }
 
 static void ADMoveCursor(const AgentDesktopCursorFrame *frame, double mainHeight) {
     [ADCursorWindow setFrameOrigin:NSMakePoint(frame->x - ADTipX, mainHeight - frame->y - ADTipY)];
+    ADOrbTrailPush(NSMakePoint(frame->x, mainHeight - frame->y));
 }
 
 static NSFont *ADLabelFont(void) {
@@ -213,6 +217,7 @@ static void ADLayoutBubble(NSSize pill) {
                                     MAX(pill.width - ADLabelPadding * 2.0, 0.0) +
                                         ADTextCellInset * 2.0,
                                     line);
+    ADOrbStylePill(ADBubblePill);
 }
 
 double agent_desktop_cursor_overlay_label_width(const char *label) {
@@ -231,11 +236,13 @@ double agent_desktop_cursor_overlay_label_width(const char *label) {
 void agent_desktop_cursor_overlay_idle(void) {
     @autoreleasepool {
         ADDragPoll();
+        ADOrbTrailTick();
         ADPump(NSApplication.sharedApplication);
     }
 }
 
 void agent_desktop_cursor_overlay_stop(void) {
+    ADOrbTrailClear();
     ADDragCancel();
     [ADCursorWindow orderOut:nil];
     [ADBubbleWindow orderOut:nil];
@@ -293,6 +300,7 @@ void agent_desktop_cursor_overlay_rest(void) {
         [ADCursorWindow orderOut:nil];
         [ADBubbleWindow orderOut:nil];
         ADCaretStop();
+        ADOrbTrailClear();
         ADCursorWindow.alphaValue = 1.0;
         ADBubbleWindow.alphaValue = 1.0;
         ADTrailStop();
@@ -300,6 +308,7 @@ void agent_desktop_cursor_overlay_rest(void) {
 }
 
 void agent_desktop_cursor_overlay_hide(void) {
+    ADOrbTrailClear();
     ADDragCancel();
     ADCaretStop();
     [ADCursorWindow orderOut:nil];

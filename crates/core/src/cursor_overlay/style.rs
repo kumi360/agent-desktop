@@ -26,6 +26,28 @@ pub struct CursorOverlayStyle {
     highlight: bool,
     #[serde(default, skip_serializing_if = "CursorImages::is_empty")]
     images: CursorImages,
+    /// The cursor's drawn look; the default arrow serializes to nothing, so
+    /// configs that never set it are unchanged.
+    #[serde(default, skip_serializing_if = "CursorLook::is_arrow")]
+    look: CursorLook,
+}
+
+/// How the built-in cursor is drawn when no `--image` replaces it.
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CursorLook {
+    /// The stock arrow, ripple and pill.
+    #[default]
+    Arrow,
+    /// A glass orb with a fading light trail, a thin-ring click pulse and a
+    /// glass label pill.
+    Orb,
+}
+
+impl CursorLook {
+    pub const fn is_arrow(&self) -> bool {
+        matches!(self, Self::Arrow)
+    }
 }
 
 impl CursorOverlayStyle {
@@ -74,6 +96,14 @@ impl CursorOverlayStyle {
     pub fn set_effects(&mut self, ripple: bool, highlight: bool) {
         self.ripple = ripple;
         self.highlight = highlight;
+    }
+
+    pub fn set_look(&mut self, look: CursorLook) {
+        self.look = look;
+    }
+
+    pub const fn look(&self) -> CursorLook {
+        self.look
     }
 
     pub fn set_image(&mut self, image: Option<CursorImage>) {
@@ -134,6 +164,7 @@ impl Default for CursorOverlayStyle {
             ripple: true,
             highlight: true,
             images: CursorImages::default(),
+            look: CursorLook::Arrow,
         }
     }
 }

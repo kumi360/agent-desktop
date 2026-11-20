@@ -12,6 +12,7 @@ static AgentDesktopCursorStyle ADCurrentStyle = {
     .rim = {0.07, 0.07, 0.09},
     .accent = {0.26, 0.60, 1.0},
     .size = 1.0,
+    .look = ADLookArrow,
 };
 
 static __strong NSWindow *ADHighlightWindow = nil;
@@ -144,9 +145,13 @@ NSWindow *ADRippleWindow(void) {
 }
 
 void ADRipplePlay(NSWindow *window) {
+    if (ADOrbActive()) {
+        ADOrbPulse(window);
+        return;
+    }
     NSArray<CALayer *> *layers = window.contentView.layer.sublayers;
     [window orderFrontRegardless];
-    for (NSUInteger index = 0; index < layers.count; index += 1) {
+    for (NSUInteger index = 0; index < ADRippleRings + 1 && index < layers.count; index += 1) {
         CAShapeLayer *layer = (CAShapeLayer *)layers[index];
         [layer removeAllAnimations];
         layer.fillColor = index == 0 ? ADColor(ADCurrentStyle.accent, 1.0)

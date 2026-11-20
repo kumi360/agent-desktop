@@ -1,5 +1,5 @@
 use agent_desktop_core::{
-    AdapterError, CURSOR_HIGHLIGHT_HOLD_MS, CursorImage, CursorOverlayInstruction,
+    AdapterError, CURSOR_HIGHLIGHT_HOLD_MS, CursorImage, CursorLook, CursorOverlayInstruction,
     CursorOverlayStyle, CursorPhase, CursorPose, ErrorCode, LabelPill, Point, Rect, place_label,
 };
 use std::ffi::{CString, c_char};
@@ -18,6 +18,7 @@ struct NativeCursorStyle {
     rim: [f64; 3],
     accent: [f64; 3],
     size: f64,
+    look: u8,
 }
 
 #[repr(C)]
@@ -226,6 +227,10 @@ pub(super) fn apply_style(style: &CursorOverlayStyle, image_changed: bool) {
         rim: style.rim_rgb(),
         accent: style.accent_rgb(),
         size: style.size(),
+        look: match style.look() {
+            CursorLook::Arrow => 0,
+            CursorLook::Orb => 1,
+        },
     };
     unsafe { agent_desktop_cursor_overlay_style(&native) }
     if image_changed {

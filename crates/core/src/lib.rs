@@ -46,7 +46,7 @@ pub use context::{CommandContext, WaitSelector};
 pub use cursor_overlay::{
     CURSOR_ARRIVAL_TIMEOUT_MS, CURSOR_HIGHLIGHT_HOLD_MS, CURSOR_IDLE_REST_MS,
     CURSOR_LABEL_REVEAL_MS, CURSOR_MOTION_BUDGET_MS, CURSOR_OVERLAY_GREETING, CURSOR_REST_FADE_MS,
-    CURSOR_SAME_POINT, CursorImage, CursorImages, CursorMotion, CursorMotionProfile,
+    CURSOR_SAME_POINT, CursorImage, CursorImages, CursorLook, CursorMotion, CursorMotionProfile,
     CursorOverlayConfig, CursorOverlayControl, CursorOverlayInstruction, CursorOverlayStyle,
     CursorPhase, CursorPose, LABEL_FONT_POINTS, LABEL_PILL_HEIGHT, LABEL_PILL_MAX_WIDTH,
     LABEL_PILL_PADDING, LABEL_SHADOW_BLUR, LABEL_SHADOW_OFFSET, LABEL_SHADOW_OPACITY, LabelPill,

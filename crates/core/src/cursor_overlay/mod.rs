@@ -35,7 +35,7 @@ pub use motion::CursorMotion;
 pub use motion_profile::CursorMotionProfile;
 pub use phase::CursorPhase;
 pub use pose::CursorPose;
-pub use style::CursorOverlayStyle;
+pub use style::{CursorLook, CursorOverlayStyle};
 pub(crate) use submit::{
     cancel_drag, confirms_delivery, dispatch_mouse_event_with_cursor, input_was_delivered, submit,
     submit_caret, submit_caret_follow, submit_drag, submit_drag_effect, submit_travel,

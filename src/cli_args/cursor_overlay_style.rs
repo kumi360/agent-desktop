@@ -1,4 +1,4 @@
-use agent_desktop_core::{AppError, CursorOverlayStyle};
+use agent_desktop_core::{AppError, CursorLook, CursorOverlayStyle};
 use clap::Args;
 
 #[derive(Args, Debug, Default)]
@@ -26,6 +26,13 @@ pub(crate) struct CursorOverlayStyleArgs {
     pub no_ripple: bool,
     #[arg(long, help = "Do not outline the element when the agent clicks")]
     pub no_highlight: bool,
+    #[arg(
+        long = "style",
+        value_name = "LOOK",
+        value_parser = parse_look,
+        help = "Cursor look: arrow (default) or orb, a glass orb with a light trail and a thin-ring click pulse"
+    )]
+    pub look: Option<CursorLook>,
     #[command(flatten)]
     pub images: super::cursor_overlay_images::CursorOverlayImagesArgs,
 }
@@ -46,8 +53,19 @@ impl CursorOverlayStyleArgs {
             style.set_size(size);
         }
         style.set_effects(!self.no_ripple, !self.no_highlight);
+        if let Some(look) = self.look {
+            style.set_look(look);
+        }
         self.images.apply_to(&mut style)?;
         Ok(style)
+    }
+}
+
+fn parse_look(value: &str) -> Result<CursorLook, String> {
+    match value.to_ascii_lowercase().as_str() {
+        "arrow" => Ok(CursorLook::Arrow),
+        "orb" => Ok(CursorLook::Orb),
+        _ => Err("cursor look must be arrow or orb".to_string()),
     }
 }
 
