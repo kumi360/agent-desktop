@@ -74,8 +74,15 @@ pub(super) fn retire_other_overlays(session_id: &str) -> Vec<i32> {
         if name.starts_with(&keep) {
             continue;
         }
-        let Some(pid) = overlay_owner(&socket) else {
-            continue;
+        let pid = match overlay_owner(&socket) {
+            Owner::Live(pid) => pid,
+            Owner::Dead => {
+                if left_behind(&socket) {
+                    let _ = std::fs::remove_file(&socket);
+                }
+                continue;
+            }
+            Owner::Other => continue,
         };
         if unsafe { libc::kill(pid, libc::SIGTERM) } == 0 {
             tracing::info!(pid, socket = %name, "retired another cursor overlay");
@@ -117,16 +124,43 @@ fn overlay_sockets(directories: &[PathBuf]) -> Vec<PathBuf> {
     sockets
 }
 
-/// The pid listening on `socket`, when it is a live agent-desktop process of
-/// this user other than this one.
-fn overlay_owner(socket: &Path) -> Option<i32> {
-    let stream = UnixStream::connect(socket).ok()?;
-    let pid = peer_pid(&stream)?;
+/// Who is behind an overlay socket file.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Owner {
+    /// A live agent-desktop overlay process of this user other than this one.
+    Live(i32),
+    /// Nobody listens: the file was left behind by an overlay that is gone.
+    Dead,
+    /// Anything else, which the sweep leaves alone.
+    Other,
+}
+
+pub(super) fn overlay_owner(socket: &Path) -> Owner {
+    let stream = match UnixStream::connect(socket) {
+        Ok(stream) => stream,
+        Err(error) if error.kind() == std::io::ErrorKind::ConnectionRefused => {
+            return Owner::Dead;
+        }
+        Err(_) => return Owner::Other,
+    };
+    let Some(pid) = peer_pid(&stream) else {
+        return Owner::Other;
+    };
     drop(stream);
-    if pid <= 1 || pid == std::process::id() as i32 {
-        return None;
+    if pid <= 1 || pid == std::process::id() as i32 || !is_agent_desktop(pid) {
+        return Owner::Other;
     }
-    is_agent_desktop(pid).then_some(pid)
+    Owner::Live(pid)
+}
+
+/// A dead socket is removed only once it is a few seconds old, so a socket
+/// another overlay has just bound and is about to listen on is never taken.
+fn left_behind(socket: &Path) -> bool {
+    std::fs::symlink_metadata(socket)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| modified.elapsed().ok())
+        .is_some_and(|age| age >= Duration::from_secs(10))
 }
 
 fn peer_pid(stream: &UnixStream) -> Option<i32> {

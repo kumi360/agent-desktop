@@ -58,7 +58,27 @@ fn a_socket_held_by_this_process_or_a_non_agent_desktop_process_is_never_stopped
     let socket = dir.join(".cursor-overlay-0123456789abcdef.sock");
     let _ = std::fs::remove_file(&socket);
     let _listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
-    assert_eq!(overlay_owner(&socket), None, "our own socket is skipped");
+    assert_eq!(
+        overlay_owner(&socket),
+        Owner::Other,
+        "our own socket is skipped"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_socket_nobody_listens_on_is_dead_and_only_removed_once_old() {
+    let dir = std::env::temp_dir().join(format!("ad-dead-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let socket = dir.join(".cursor-overlay-fedcba9876543210.sock");
+    let _ = std::fs::remove_file(&socket);
+    drop(std::os::unix::net::UnixListener::bind(&socket).unwrap());
+    assert!(socket.exists());
+    assert_eq!(overlay_owner(&socket), Owner::Dead);
+    assert!(
+        !left_behind(&socket),
+        "a fresh socket may be about to listen"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
