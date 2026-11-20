@@ -106,6 +106,18 @@ fn a_disabled_field_below_the_fold_waits_out_the_budget_like_one_in_view() {
     assert_eq!(error.code, ErrorCode::Timeout);
     let details = error.details.expect("timeout details");
     assert_eq!(details["kind"], "actionability_timeout");
+    assert!(
+        error.message.contains("stayed disabled"),
+        "a greyed-out target says so: {}",
+        error.message
+    );
+    assert!(
+        error
+            .suggestion
+            .as_deref()
+            .is_some_and(|text| !text.contains("busy or unresponsive")),
+        "a disabled target is not blamed on a busy app"
+    );
     assert_eq!(adapter.scroll_calls.load(Ordering::SeqCst), 0);
     assert_eq!(adapter.dispatch_calls.load(Ordering::SeqCst), 0);
     assert_eq!(error.disposition, crate::DeliverySemantics::not_delivered());

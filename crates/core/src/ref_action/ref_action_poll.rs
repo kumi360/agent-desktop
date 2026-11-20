@@ -182,9 +182,31 @@ fn timeout(state: &RefActionPollState, deadline: Deadline) -> AdapterError {
     {
         object.insert("transient_ambiguity".into(), true.into());
     }
-    AdapterError::timeout("Target did not become actionable within the wait budget")
+    let error = if stayed_disabled(state.last_report.as_ref()) {
+        AdapterError::timeout("The target stayed disabled (greyed out), so nothing was pressed")
+            .with_suggestion(
+                "It is not available yet. Do what the app needs first, such as selecting or copying something, then take a fresh snapshot and try again.",
+            )
+    } else {
+        AdapterError::timeout("Target did not become actionable within the wait budget")
+    };
+    error
         .with_details(details)
         .with_disposition(crate::DeliverySemantics::not_delivered())
+}
+
+/// True when the target was still disabled at the deadline. Being greyed
+/// out is the reason a person needs to hear, even if other checks failed too.
+fn stayed_disabled(last_report: Option<&serde_json::Value>) -> bool {
+    last_report
+        .and_then(|last| last.pointer("/report/checks"))
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|checks| {
+            checks.iter().any(|check| {
+                check.get("check").and_then(serde_json::Value::as_str) == Some("enabled")
+                    && check.get("status").and_then(serde_json::Value::as_str) == Some("fail")
+            })
+        })
 }
 
 fn settled_identity(
