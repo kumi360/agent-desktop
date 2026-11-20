@@ -216,8 +216,11 @@ void ADHighlightShow(NSRect frame, double seconds) {
         ADFreezeLayer(ADHighlightBorder);
         [ADHighlightWindow.contentView.layer addSublayer:ADHighlightBorder];
     }
+    // A whole window gets a whisper of tint and a barely-there settle; the
+    // strong fill and pop are for small controls that need finding.
+    bool broad = frame.size.width * frame.size.height > 200.0 * 200.0;
     ADHighlightBorder.borderColor = ADAccent(1.0);
-    ADHighlightBorder.backgroundColor = ADAccent(0.10);
+    ADHighlightBorder.backgroundColor = ADAccent(broad ? 0.035 : 0.10);
     ADHighlightBorder.shadowColor = ADAccent(1.0);
     ADHighlightBorder.shadowOpacity = 0.5;
     ADHighlightBorder.shadowRadius = 10.0;
@@ -233,7 +236,8 @@ void ADHighlightShow(NSRect frame, double seconds) {
                                            seconds)
                              forKey:@"agent-highlight-fade"];
     [ADHighlightBorder addAnimation:ADHold(@"transform.scale",
-                                           @[ @1.08, @0.99, @1.0, @1.0 ],
+                                           broad ? @[ @1.012, @0.998, @1.0, @1.0 ]
+                                                 : @[ @1.08, @0.99, @1.0, @1.0 ],
                                            @[ @0.0, @0.12, @0.22, @1.0 ],
                                            seconds)
                              forKey:@"agent-highlight-pop"];
