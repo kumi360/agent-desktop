@@ -19,6 +19,10 @@ pub struct CursorOverlayInstruction {
     pointer: bool,
 }
 
+fn narration_len(narration: Option<&str>) -> usize {
+    narration.map_or(0, |text| text.trim().chars().count())
+}
+
 impl CursorOverlayInstruction {
     pub fn new(
         destination: Point,
@@ -41,6 +45,20 @@ impl CursorOverlayInstruction {
             phase: CursorPhase::Travel,
             pointer: false,
         })
+    }
+
+    /// Replaces the label with a short narration of the action, such as
+    /// "Opening TextEdit". Blank narration keeps the configured label.
+    pub fn with_narration(mut self, narration: Option<&str>) -> Self {
+        if let Some(text) = narration.map(str::trim).filter(|text| !text.is_empty()) {
+            const MAX_NARRATION_CHARS: usize = 48;
+            let mut text: String = text.chars().take(MAX_NARRATION_CHARS).collect();
+            if text.chars().count() < narration_len(narration) {
+                text.push('…');
+            }
+            self.label = Some(text);
+        }
+        self
     }
 
     pub const fn with_phase(mut self, phase: CursorPhase) -> Self {

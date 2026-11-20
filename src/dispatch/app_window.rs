@@ -19,21 +19,39 @@ use crate::cli_args::{
     },
 };
 use crate::dispatch::parse::build_launch_options;
+use crate::dispatch::window_cue;
+use agent_desktop_core::context::CommandContext;
 
-pub(super) fn launch(args: LaunchArgs, adapter: &dyn PlatformAdapter) -> Result<Value, AppError> {
-    launch_command::execute(
+pub(super) fn launch(
+    args: LaunchArgs,
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+) -> Result<Value, AppError> {
+    let value = launch_command::execute(
         launch_command::LaunchArgs {
             app: args.app.clone(),
             options: build_launch_options(&args)?,
         },
         adapter,
-    )
+    )?;
+    window_cue::after(adapter, context, &value, Some(&args.app), |app| {
+        window_cue::named("Opening", app)
+    });
+    Ok(value)
 }
 
 pub(super) fn close_app(
     args: CloseAppArgs,
     adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
 ) -> Result<Value, AppError> {
+    window_cue::before(
+        adapter,
+        context,
+        Some(&args.app),
+        None,
+        &window_cue::named("Closing", Some(&args.app)),
+    );
     close_app_command::execute(
         close_app_command::CloseAppArgs {
             app: args.app,
@@ -82,7 +100,7 @@ pub(super) fn list_surfaces(
 pub(super) fn open_system_surface(
     args: OpenSystemSurfaceArgs,
     adapter: &dyn PlatformAdapter,
-    context: &agent_desktop_core::context::CommandContext,
+    context: &CommandContext,
 ) -> Result<Value, AppError> {
     open_system_surface_command::execute(
         open_system_surface_command::OpenSystemSurfaceArgs {
@@ -96,22 +114,30 @@ pub(super) fn open_system_surface(
 pub(super) fn focus_window(
     args: FocusWindowArgs,
     adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
 ) -> Result<Value, AppError> {
-    focus_window_command::execute(
+    let app = args.app.clone();
+    let value = focus_window_command::execute(
         focus_window_command::FocusWindowArgs {
             window_id: args.window_id,
             app: args.app,
             title: args.title,
         },
         adapter,
-    )
+    )?;
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Switching to", app)
+    });
+    Ok(value)
 }
 
 pub(super) fn resize_window(
     args: ResizeWindowCliArgs,
     adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
 ) -> Result<Value, AppError> {
-    resize_window_command::execute(
+    let app = args.scope.app.clone();
+    let value = resize_window_command::execute(
         resize_window_command::ResizeWindowArgs {
             app: args.scope.app,
             window_id: args.scope.window_id,
@@ -119,14 +145,20 @@ pub(super) fn resize_window(
             height: args.height,
         },
         adapter,
-    )
+    )?;
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Resizing", app)
+    });
+    Ok(value)
 }
 
 pub(super) fn move_window(
     args: MoveWindowCliArgs,
     adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
 ) -> Result<Value, AppError> {
-    move_window_command::execute(
+    let app = args.scope.app.clone();
+    let value = move_window_command::execute(
         move_window_command::MoveWindowArgs {
             app: args.scope.app,
             window_id: args.scope.window_id,
@@ -134,10 +166,25 @@ pub(super) fn move_window(
             y: args.y,
         },
         adapter,
-    )
+    )?;
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Moving", app)
+    });
+    Ok(value)
 }
 
-pub(super) fn minimize(args: AppRefArgs, adapter: &dyn PlatformAdapter) -> Result<Value, AppError> {
+pub(super) fn minimize(
+    args: AppRefArgs,
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+) -> Result<Value, AppError> {
+    window_cue::before(
+        adapter,
+        context,
+        args.scope.app.as_deref(),
+        args.scope.window_id.as_deref(),
+        &window_cue::named("Minimizing", args.scope.app.as_deref()),
+    );
     minimize_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
@@ -147,22 +194,40 @@ pub(super) fn minimize(args: AppRefArgs, adapter: &dyn PlatformAdapter) -> Resul
     )
 }
 
-pub(super) fn maximize(args: AppRefArgs, adapter: &dyn PlatformAdapter) -> Result<Value, AppError> {
-    maximize_command::execute(
+pub(super) fn maximize(
+    args: AppRefArgs,
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+) -> Result<Value, AppError> {
+    let app = args.scope.app.clone();
+    let value = maximize_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
             window_id: args.scope.window_id,
         },
         adapter,
-    )
+    )?;
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Maximizing", app)
+    });
+    Ok(value)
 }
 
-pub(super) fn restore(args: AppRefArgs, adapter: &dyn PlatformAdapter) -> Result<Value, AppError> {
-    restore_command::execute(
+pub(super) fn restore(
+    args: AppRefArgs,
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+) -> Result<Value, AppError> {
+    let app = args.scope.app.clone();
+    let value = restore_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
             window_id: args.scope.window_id,
         },
         adapter,
-    )
+    )?;
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Restoring", app)
+    });
+    Ok(value)
 }

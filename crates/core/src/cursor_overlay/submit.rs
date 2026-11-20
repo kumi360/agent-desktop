@@ -181,6 +181,45 @@ pub(crate) fn submit_drag_effect(
     let _ = send(adapter, context, instruction);
 }
 
+/// Where the cursor rests to point at a whole window: the middle of its
+/// title bar, inside the window even when it is short.
+pub fn window_cue_point(window: &Rect) -> Point {
+    Point {
+        x: window.x + window.width / 2.0,
+        y: window.y + (window.height / 2.0).min(14.0),
+    }
+}
+
+/// A calm cue for a window-level action (opening an app, switching to a
+/// window, moving, resizing, minimizing or closing it): the cursor glides to
+/// the window's title bar, the window gets a soft outline, and the label
+/// says what is happening. Presentation only; returns whether it was drawn.
+pub fn present_window_cue(
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+    window: &Rect,
+    narration: &str,
+) -> bool {
+    if window.validate().is_err() || window.width < 1.0 || window.height < 1.0 {
+        return false;
+    }
+    let Ok(deadline) = crate::Deadline::detached_after(crate::CURSOR_ARRIVAL_TIMEOUT_MS) else {
+        return false;
+    };
+    let _scope = crate::wait::deadline::enter_scope(Some(deadline));
+    let instruction = super::CursorOverlayInstruction::new(
+        window_cue_point(window),
+        context.cursor_overlay(),
+        false,
+    )
+    .map(|instruction| {
+        instruction
+            .with_target(Some(*window))
+            .with_narration(Some(narration))
+    });
+    send(adapter, context, instruction)
+}
+
 pub(crate) fn cancel_drag(adapter: &dyn PlatformAdapter, context: &CommandContext) {
     let Ok(cleanup_deadline) = crate::Deadline::detached_after(crate::CURSOR_ARRIVAL_TIMEOUT_MS)
     else {
@@ -229,11 +268,7 @@ pub(super) fn agent_route(context: &CommandContext) -> Option<String> {
 }
 
 fn enabled_session(context: &CommandContext) -> Option<&str> {
-    if context.cursor_overlay().is_enabled() {
-        context.session_id()
-    } else {
-        None
-    }
+    context.overlay_key()
 }
 
 fn update(adapter: &dyn PlatformAdapter, control: &super::CursorOverlayControl) -> bool {

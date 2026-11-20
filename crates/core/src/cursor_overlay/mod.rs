@@ -46,6 +46,7 @@ pub(crate) use submit::{
     submit_caret, submit_caret_follow, submit_drag, submit_drag_effect, submit_travel,
     submit_travel_before_lease,
 };
+pub use submit::{present_window_cue, window_cue_point};
 pub use timing::{
     CURSOR_ARRIVAL_TIMEOUT_MS, CURSOR_HIGHLIGHT_HOLD_MS, CURSOR_IDLE_REST_MS,
     CURSOR_LABEL_REVEAL_MS, CURSOR_MOTION_BUDGET_MS, CURSOR_REST_FADE_MS,
@@ -63,3 +64,7 @@ mod tests;
 #[cfg(test)]
 #[path = "greeting_tests.rs"]
 mod greeting_tests;
+
+#[cfg(test)]
+#[path = "window_cue_tests.rs"]
+mod window_cue_tests;

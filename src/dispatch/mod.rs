@@ -12,6 +12,7 @@ pub(crate) mod sandbox;
 mod session;
 mod system;
 mod trace;
+mod window_cue;
 
 #[cfg(test)]
 mod test_support;
@@ -99,17 +100,17 @@ fn dispatch_command(
         Commands::MouseDown(args) => keyboard_mouse::mouse_down(args, adapter, context),
         Commands::MouseUp(args) => keyboard_mouse::mouse_up(args, adapter, context),
         Commands::MouseWheel(args) => keyboard_mouse::mouse_wheel(args, adapter, context),
-        Commands::Launch(args) => app_window::launch(args, adapter),
-        Commands::CloseApp(args) => app_window::close_app(args, adapter),
+        Commands::Launch(args) => app_window::launch(args, adapter, context),
+        Commands::CloseApp(args) => app_window::close_app(args, adapter, context),
         Commands::ListWindows(args) => app_window::list_windows(args, adapter),
         Commands::ListDisplays => commands::list_displays::execute(adapter),
         Commands::ListApps(args) => app_window::list_apps(args, adapter),
-        Commands::FocusWindow(args) => app_window::focus_window(args, adapter),
-        Commands::ResizeWindow(args) => app_window::resize_window(args, adapter),
-        Commands::MoveWindow(args) => app_window::move_window(args, adapter),
-        Commands::Minimize(args) => app_window::minimize(args, adapter),
-        Commands::Maximize(args) => app_window::maximize(args, adapter),
-        Commands::Restore(args) => app_window::restore(args, adapter),
+        Commands::FocusWindow(args) => app_window::focus_window(args, adapter, context),
+        Commands::ResizeWindow(args) => app_window::resize_window(args, adapter, context),
+        Commands::MoveWindow(args) => app_window::move_window(args, adapter, context),
+        Commands::Minimize(args) => app_window::minimize(args, adapter, context),
+        Commands::Maximize(args) => app_window::maximize(args, adapter, context),
+        Commands::Restore(args) => app_window::restore(args, adapter, context),
         Commands::ListSurfaces(args) => app_window::list_surfaces(args, adapter),
         Commands::OpenSystemSurface(args) => {
             app_window::open_system_surface(args, adapter, context)
