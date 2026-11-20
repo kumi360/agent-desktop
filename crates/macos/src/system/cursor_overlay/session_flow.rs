@@ -119,6 +119,14 @@ pub(super) fn remember(at: Option<&Point>) {
     }
 }
 
+/// Whether a new cursor continues from the remembered landing point. One
+/// named helper's cursor in a multi-agent session never does: that point is
+/// where another helper's cursor stands, and starting there would stack the
+/// two cursors and their labels. It starts beside its own first target.
+pub(super) fn resumes_shared_landing(enabling: bool, agent_id: Option<&str>) -> bool {
+    !enabling && agent_id.is_none()
+}
+
 /// Where the cursor last landed, when that point is still on a screen.
 pub(super) fn recall() -> Option<Point> {
     let text = std::fs::read(landing_file()?).ok()?;

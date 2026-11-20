@@ -46,7 +46,7 @@ fn run() -> Result<(), AdapterError> {
     prepare_socket(&socket)?;
     let mut state = OverlayState::default();
     let session = super::session_flow::is_session(initial.session_id());
-    if !initial.is_enable() {
+    if super::session_flow::resumes_shared_landing(initial.is_enable(), initial.agent_id()) {
         state.at = super::session_flow::recall();
     }
     if !handle(&initial, &mut state)? {
