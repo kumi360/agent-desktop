@@ -83,13 +83,20 @@ pub(crate) fn visible_target(
     if !input.presents {
         return Ok(Some(target(center(bounds), "visible")));
     }
-    let (check, point) = receives_events_check(
+    // The semantic delivery does not use the pointer, so a hit test that
+    // cannot prove the landing only leaves the drawn cursor unverified; a
+    // timeout still ends the action.
+    let (check, point) = match receives_events_check(
         Some(bounds),
         input.handle,
         input.adapter,
         input.request,
         input.deadline,
-    )?;
+    ) {
+        Ok(checked) => checked,
+        Err(error) if error.code == ErrorCode::Timeout => return Err(error),
+        Err(_) => return Ok(Some(target(center(bounds), "visible_unverified"))),
+    };
     Ok(Some(match check.status {
         ActionabilityStatus::Pass => target(point.or_else(|| center(bounds)), "hit"),
         ActionabilityStatus::Fail => VisibleTarget {

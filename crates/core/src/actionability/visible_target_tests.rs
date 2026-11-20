@@ -14,6 +14,7 @@ const VISIBLE: Rect = Rect {
 struct Fake {
     visibility: TargetVisibility,
     hit: HitTestResult,
+    hit_error: Option<ErrorCode>,
     nonspatial: bool,
     hit_tests: AtomicUsize,
 }
@@ -23,6 +24,7 @@ impl Fake {
         Self {
             visibility,
             hit,
+            hit_error: None,
             nonspatial: false,
             hit_tests: AtomicUsize::new(0),
         }
@@ -53,7 +55,10 @@ impl ObservationOps for Fake {
         _deadline: crate::Deadline,
     ) -> Result<HitTestResult, AdapterError> {
         self.hit_tests.fetch_add(1, Ordering::SeqCst);
-        Ok(self.hit.clone())
+        match &self.hit_error {
+            Some(code) => Err(AdapterError::new(code.clone(), "hit test failed")),
+            None => Ok(self.hit.clone()),
+        }
     }
 }
 impl ActionOps for Fake {}
@@ -207,4 +212,19 @@ fn an_occluded_semantic_target_is_not_drawn() {
     assert_eq!(gate.point, None);
     assert_eq!(gate.bounds, None);
     assert!(gate.occluder.is_some());
+}
+
+#[test]
+fn an_unproven_semantic_hit_test_draws_the_visible_centre_and_a_timeout_ends_it() {
+    let mut fake = Fake::new(visible(), HitTestResult::ReachesTarget);
+    fake.hit_error = Some(ErrorCode::ActionFailed);
+    let gate = run(&fake, Action::Click, PointerDelivery::Semantic, None, true)
+        .unwrap()
+        .unwrap();
+    assert_eq!(gate.verdict, "visible_unverified");
+    assert_eq!(gate.bounds, Some(VISIBLE));
+    assert_eq!(gate.point, center(VISIBLE));
+    fake.hit_error = Some(ErrorCode::Timeout);
+    let error = run(&fake, Action::Click, PointerDelivery::Semantic, None, true).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Timeout);
 }
