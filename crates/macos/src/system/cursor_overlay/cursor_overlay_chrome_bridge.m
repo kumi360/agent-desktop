@@ -10,7 +10,7 @@ static const CGFloat ADHighlightBleed = 24.0;
 static AgentDesktopCursorStyle ADCurrentStyle = {
     .fill = {1.0, 1.0, 1.0},
     .rim = {0.07, 0.07, 0.09},
-    .accent = {0.26, 0.60, 1.0},
+    .accent = {155.0 / 255.0, 92.0 / 255.0, 1.0},
     .size = 1.0,
     .look = ADLookCodex,
 };

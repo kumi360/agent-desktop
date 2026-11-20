@@ -17,7 +17,7 @@ pub(crate) struct CursorOverlayStyleArgs {
     pub rim: Option<String>,
     #[arg(
         long,
-        help = "Cursor, ripple and element highlight colour as a hex value (default #4299FF)"
+        help = "Cursor, ripple and element highlight colour as a hex value for the arrow and orb looks (default Nimbus purple #9B5CFF; the codex look is always #9B5CFF)"
     )]
     pub accent: Option<String>,
     #[arg(long, help = "Cursor size multiplier from 0.5 to 4.0 (default 1.0)")]

@@ -3,7 +3,10 @@ use crate::{AdapterError, ErrorCode};
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_RIM: &str = "#111318";
-const DEFAULT_ACCENT: &str = "#4299FF";
+/// Nimbus purple: the one accent the codex cursor draws, so the colour a
+/// command reports is the colour on screen.
+pub const CODEX_ACCENT: &str = "#9B5CFF";
+const DEFAULT_ACCENT: &str = CODEX_ACCENT;
 const MIN_SIZE: f64 = 0.5;
 const MAX_SIZE: f64 = 4.0;
 
@@ -59,6 +62,8 @@ impl CursorOverlayStyle {
         std::mem::take(self)
     }
 
+    /// The codex look always draws Nimbus purple whatever `--accent` asked
+    /// for, so validation reports the colour that is actually drawn.
     pub fn validated(mut self) -> Result<Self, AdapterError> {
         for color in [self.fill.as_ref(), Some(&self.rim), Some(&self.accent)]
             .into_iter()
@@ -78,6 +83,9 @@ impl CursorOverlayStyle {
             ));
         }
         self.images = std::mem::take(&mut self.images).validated()?;
+        if self.look == CursorLook::Codex {
+            self.accent = CODEX_ACCENT.into();
+        }
         Ok(self)
     }
 
@@ -142,7 +150,7 @@ impl CursorOverlayStyle {
     }
 
     pub fn accent_rgb(&self) -> [f64; 3] {
-        rgb(&self.accent).unwrap_or([0.26, 0.60, 1.0])
+        rgb(&self.accent).unwrap_or([155.0 / 255.0, 92.0 / 255.0, 1.0])
     }
 
     pub const fn size(&self) -> f64 {
