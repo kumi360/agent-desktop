@@ -29,11 +29,20 @@ pub(crate) struct SessionStartArgs {
         help = "Capture pre/post-action screenshots and refmap copies (requires tracing; sensitive)"
     )]
     pub screenshots: bool,
-    #[arg(long, help = "Show the visual cursor overlay with its default style")]
+    #[arg(
+        long,
+        conflicts_with = "no_cursor",
+        help = "Show the purple agent cursor (the default; kept for older harnesses)"
+    )]
     pub cursor: bool,
     #[arg(
         long,
-        requires = "cursor",
+        help = "Start without the purple agent cursor. The cursor is on by default so a person watching always sees what the agent does; AGENT_DESKTOP_CURSOR=off does the same"
+    )]
+    pub no_cursor: bool,
+    #[arg(
+        long,
+        conflicts_with = "no_cursor",
         help = "Give each harness subagent its own cursor; requires --agent-id on desktop actions"
     )]
     pub multi_agent: bool,

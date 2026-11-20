@@ -50,12 +50,11 @@ fn dispatch_command(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     tracing::debug!("dispatch: {}", cmd.name());
-    let overlay_session =
-        if cmd.is_mutating() && context.is_headed() && context.cursor_overlay().is_enabled() {
-            context.session_id().map(str::to_owned)
-        } else {
-            None
-        };
+    let overlay_session = if cmd.is_mutating() && context.is_headed() {
+        context.overlay_key().map(str::to_owned)
+    } else {
+        None
+    };
     let scope = if matches!(&cmd, Commands::Session(args)
         if matches!(&args.action, crate::cli_args::session::SessionAction::End(_)))
     {

@@ -14,7 +14,8 @@ pub(crate) fn dispatch(
 ) -> Result<Value, AppError> {
     match args.action {
         SessionAction::Start(s) => {
-            let show_cursor = s.cursor;
+            let show_cursor =
+                s.cursor || s.multi_agent || !(s.no_cursor || agent_desktop_core::cursor_env_off());
             let mut value = session::execute(session::SessionAction::Start {
                 name: s.name,
                 no_trace: s.no_trace,

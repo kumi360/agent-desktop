@@ -27,7 +27,17 @@ fn identity_is_global_including_cursor_configuration() {
         assert_eq!(cli.identity.session.as_deref(), Some("run"));
         assert_eq!(cli.identity.agent_id.as_deref(), Some("a"));
     }
-    assert!(Cli::try_parse_from(["agent-desktop", "session", "start", "--multi-agent"]).is_err());
+    assert!(Cli::try_parse_from(["agent-desktop", "session", "start", "--multi-agent"]).is_ok());
+    assert!(
+        Cli::try_parse_from([
+            "agent-desktop",
+            "session",
+            "start",
+            "--no-cursor",
+            "--multi-agent"
+        ])
+        .is_err()
+    );
     assert!(
         Cli::try_parse_from([
             "agent-desktop",

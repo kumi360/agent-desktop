@@ -245,8 +245,9 @@ struct BatchSessionStartArgs {
     no_trace: bool,
     #[serde(default)]
     screenshots: bool,
+    /// On unless set to false: the cursor is on by default.
     #[serde(default)]
-    cursor: bool,
+    cursor: Option<bool>,
     #[serde(default)]
     multi_agent: bool,
 }
@@ -275,7 +276,7 @@ fn parse_session(args: Value) -> Result<SessionArgs, AppError> {
         }
         Some("start") => {
             let args: BatchSessionStartArgs = decode("session", rest)?;
-            if args.multi_agent && !args.cursor {
+            if args.multi_agent && args.cursor == Some(false) {
                 return Err(AppError::invalid_input("multi_agent requires cursor"));
             }
             SessionAction::Start(SessionStartArgs {
@@ -283,7 +284,8 @@ fn parse_session(args: Value) -> Result<SessionArgs, AppError> {
                 no_trace: args.no_trace,
                 screenshots: args.screenshots,
                 multi_agent: args.multi_agent,
-                cursor: args.cursor,
+                cursor: args.cursor == Some(true),
+                no_cursor: args.cursor == Some(false),
             })
         }
         Some("end") => {

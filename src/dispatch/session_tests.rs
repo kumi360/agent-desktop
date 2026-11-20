@@ -60,6 +60,7 @@ fn session_start_reports_the_adapter_overlay_result() {
                     no_trace: true,
                     screenshots: false,
                     cursor,
+                    no_cursor: !cursor && !multi,
                     multi_agent: multi,
                 }),
             },

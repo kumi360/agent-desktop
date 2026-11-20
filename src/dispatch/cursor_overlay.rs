@@ -13,12 +13,9 @@ pub(crate) fn dispatch(
     adapter: &dyn PlatformAdapter,
     context: &CommandContext,
 ) -> Result<Value, AppError> {
-    let session_id = context.session_id().ok_or_else(|| {
-        AppError::invalid_input_with_suggestion(
-            "Cursor overlay settings require an active session",
-            "Run `session start`, then pass its id with --session or AGENT_DESKTOP_SESSION.",
-        )
-    })?;
+    let Some(session_id) = context.session_id() else {
+        return ambient(args, adapter, context);
+    };
     let (action, control) = match args.action {
         CursorOverlayAction::Enable(args) => {
             let multi_agent = args.multi_agent || context.multi_agent();
@@ -76,6 +73,53 @@ pub(crate) fn dispatch(
 
 fn nothing_to_tear_down(error: &agent_desktop_core::AdapterError) -> bool {
     error.code == agent_desktop_core::ErrorCode::PlatformNotSupported
+}
+
+/// Without a session, `cursor-overlay` sets the ambient cursor that every
+/// session-less command draws with, and remembers it for the user.
+fn ambient(
+    args: CursorOverlayArgs,
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+) -> Result<Value, AppError> {
+    let id = agent_desktop_core::AMBIENT_CURSOR_ID;
+    match args.action {
+        CursorOverlayAction::Enable(args) => {
+            if args.multi_agent || context.agent_id().is_some() {
+                return Err(AppError::invalid_input_with_suggestion(
+                    "Per-agent cursors need a session",
+                    "Run `session start --multi-agent`, then pass its id with --session.",
+                ));
+            }
+            let config = args.to_core()?;
+            agent_desktop_core::save_ambient_config(&config)?;
+            let control = CursorOverlayControl::enable(id.to_owned(), config.style().clone())
+                .with_motion(config.motion().clone());
+            let rendered = match adapter.update_cursor_overlay(&control) {
+                Ok(()) => true,
+                Err(error) => {
+                    super::overlay_skipped::log(&error);
+                    false
+                }
+            };
+            Ok(serde_json::json!({
+                "session_id": Value::Null,
+                "scope": "ambient",
+                "cursor_overlay": config,
+                "rendered": rendered,
+            }))
+        }
+        CursorOverlayAction::Disable => {
+            let config = agent_desktop_core::CursorOverlayConfig::default();
+            agent_desktop_core::save_ambient_config(&config)?;
+            tear_down(adapter, &CursorOverlayControl::disable(id.to_owned()))?;
+            Ok(serde_json::json!({
+                "session_id": Value::Null,
+                "scope": "ambient",
+                "cursor_overlay": config,
+            }))
+        }
+    }
 }
 
 pub(super) fn tear_down(

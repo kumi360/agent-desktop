@@ -1,3 +1,4 @@
+mod ambient;
 mod caret_follow;
 mod config;
 mod control;
@@ -17,6 +18,10 @@ mod style;
 mod submit;
 mod timing;
 
+pub use ambient::{
+    AMBIENT_CURSOR_ID, CURSOR_ENV, ambient_active, ambient_config, cursor_env_off,
+    save_ambient_config,
+};
 pub(crate) use caret_follow::follow_caret_after_key;
 pub use config::{CursorOverlayConfig, MAX_CURSOR_LABEL_BYTES, MAX_CURSOR_LABEL_WORDS};
 pub use control::{CURSOR_OVERLAY_GREETING, CursorOverlayControl};
@@ -35,7 +40,7 @@ pub use motion::CursorMotion;
 pub use motion_profile::CursorMotionProfile;
 pub use phase::CursorPhase;
 pub use pose::CursorPose;
-pub use style::{CursorLook, CursorOverlayStyle};
+pub use style::{CODEX_ACCENT, CursorLook, CursorOverlayStyle};
 pub(crate) use submit::{
     cancel_drag, confirms_delivery, dispatch_mouse_event_with_cursor, input_was_delivered, submit,
     submit_caret, submit_caret_follow, submit_drag, submit_drag_effect, submit_travel,

@@ -92,8 +92,10 @@ impl CommandContext {
         let session = acquire_session_scope(session_id.clone(), None)?;
         let (segment_dir, artifacts_full) =
             session_trace_state(session_id.as_deref(), trace_path.is_some())?;
-        let cursor_overlay =
-            session::cursor_overlay_for_session(session.as_ref().map(|scope| scope.id.as_str()))?;
+        let cursor_overlay = match session.as_ref() {
+            Some(scope) => session::cursor_overlay_for_session(Some(scope.id.as_str()))?,
+            None => crate::cursor_overlay::ambient_config(),
+        };
         Ok(Self {
             session,
             inherited_deadline: None,
@@ -259,11 +261,10 @@ impl CommandContext {
         };
         let cursor_overlay = if reuses_parent_session {
             self.options.cursor_overlay.clone()
+        } else if let Some(scope) = session.as_ref() {
+            session::cursor_overlay_for_session_agent(Some(scope.id.as_str()), self.agent_id())?
         } else {
-            session::cursor_overlay_for_session_agent(
-                session.as_ref().map(|scope| scope.id.as_str()),
-                self.agent_id(),
-            )?
+            crate::cursor_overlay::ambient_config()
         };
         Ok(Self {
             session,
@@ -284,6 +285,18 @@ impl CommandContext {
 
     pub fn session_id(&self) -> Option<&str> {
         self.session.as_ref().map(|session| session.id.as_str())
+    }
+
+    /// The overlay this command draws on: its session's, or the ambient
+    /// cursor when it runs without one. `None` when the cursor is off.
+    pub fn overlay_key(&self) -> Option<&str> {
+        if !self.options.cursor_overlay.is_enabled() {
+            return None;
+        }
+        Some(
+            self.session_id()
+                .unwrap_or(crate::cursor_overlay::AMBIENT_CURSOR_ID),
+        )
     }
 
     pub fn trace_enabled(&self) -> bool {
