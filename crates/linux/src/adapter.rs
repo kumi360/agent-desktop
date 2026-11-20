@@ -171,6 +171,14 @@ impl ObservationOps for LinuxAdapter {
         )
     }
 
+    fn target_visibility(
+        &self,
+        handle: &NativeHandle,
+        deadline: Deadline,
+    ) -> Result<agent_desktop_core::adapter::hit_test::TargetVisibility, AdapterError> {
+        crate::tree::live_read::live_offscreen::target_visibility(self.bus(), handle, deadline)
+    }
+
     fn get_text_selection(
         &self,
         handle: &NativeHandle,

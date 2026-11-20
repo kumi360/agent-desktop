@@ -31,4 +31,5 @@ pub(crate) struct Placement {
 
 pub(crate) mod popup_frame;
 pub(super) mod snapshot_visibility;
+pub(crate) mod target_visibility;
 pub(crate) mod visibility;

@@ -126,6 +126,29 @@ pub(crate) fn placement(bus: &SharedBus, element: &AtspiElement, deadline: Deadl
     placed
 }
 
+/// The on-screen part of the element behind `handle`, judged on one live
+/// placement read. Tray items and shell elements keep the old behaviour.
+pub(crate) fn target_visibility(
+    bus: &SharedBus,
+    handle: &agent_desktop_core::NativeHandle,
+    deadline: Deadline,
+) -> Result<agent_desktop_core::adapter::hit_test::TargetVisibility, agent_desktop_core::AdapterError>
+{
+    use agent_desktop_core::adapter::hit_test::TargetVisibility;
+    if crate::system::tray::target_of(handle).is_some() {
+        return Ok(TargetVisibility::Unknown);
+    }
+    let element = crate::tree::atspi_element(handle)?;
+    if shell::is_shell_element(element) {
+        return Ok(TargetVisibility::Unknown);
+    }
+    Ok(
+        crate::tree::placement::target_visibility::target_visibility(&placement(
+            bus, element, deadline,
+        )),
+    )
+}
+
 fn place(bus: &SharedBus, element: &AtspiElement, deadline: Deadline) -> Placement {
     let toolkit = toolkit_of(bus, element, deadline);
     let mut placed = Placement {
