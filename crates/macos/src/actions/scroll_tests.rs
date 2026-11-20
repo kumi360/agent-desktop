@@ -2,7 +2,7 @@ use std::cell::Cell;
 
 use agent_desktop_core::{AdapterError, Direction, ErrorCode};
 
-use super::repeat_action;
+use super::{offer_headed, repeat_action};
 
 #[test]
 fn horizontal_wheel_delta_matches_direction() {
@@ -90,5 +90,25 @@ fn repeated_scroll_propagates_uncertain_mutation_without_another_attempt() {
     assert_eq!(
         error.details.as_ref().unwrap()["action_may_have_completed"],
         true
+    );
+}
+
+#[test]
+fn an_inert_page_scroll_names_the_headed_wheel_and_keeps_its_uncertain_outcome() {
+    let inert = crate::actions::ax_mutation::settle_uninformative_perform(
+        "AXScrollDownByPage",
+        accessibility_sys::kAXErrorCannotComplete,
+        false,
+    )
+    .unwrap_err();
+    let disposition = inert.disposition;
+    let offered = offer_headed(inert);
+    assert!(offered.suggestion.unwrap().contains("--headed"));
+    assert_eq!(offered.disposition, disposition);
+    let other = offer_headed(AdapterError::timeout("slow"));
+    assert!(
+        other
+            .suggestion
+            .is_none_or(|text| !text.contains("--headed"))
     );
 }

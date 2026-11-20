@@ -33,7 +33,9 @@ pub(crate) fn ax_scroll(
             return Ok((StepMechanism::SemanticApi, false));
         }
     }
-    if perform_repeated_action(target, page_action(direction), amount, deadline)? {
+    if perform_repeated_action(target, page_action(direction), amount, deadline)
+        .map_err(offer_headed)?
+    {
         return Ok((StepMechanism::SemanticApi, false));
     }
     Err(AdapterError::new(
@@ -47,6 +49,18 @@ pub(crate) fn ax_scroll(
         "The application publishes the scroll actions without implementing them. \
          Try the parent container, or use '--headed' for a physical wheel scroll.",
     ))
+}
+
+/// A page scroll the app accepted but did not visibly honour, as in many
+/// SwiftUI lists, keeps its uncertain outcome but names the way forward.
+fn offer_headed(error: AdapterError) -> AdapterError {
+    if error.code != ErrorCode::ActionFailed {
+        return error;
+    }
+    error.with_suggestion(
+        "Take a fresh snapshot to see whether the list moved. If it did not, this app \
+         ignores semantic scrolling: scroll again with '--headed' for a real wheel scroll.",
+    )
 }
 
 fn validate_amount(amount: u32) -> Result<(), AdapterError> {
