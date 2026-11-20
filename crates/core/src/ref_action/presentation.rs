@@ -4,6 +4,9 @@ use super::{ActionabilityPreflight, ResolvedRefAction};
 use crate::cursor_overlay::CursorPhase;
 use crate::{Action, CommandContext, PlatformAdapter};
 
+#[path = "hidden_cue.rs"]
+mod hidden_cue;
+
 const SAME_POINT: f64 = 1.5;
 const FOCUS_READ_MS: u64 = 150;
 
@@ -18,6 +21,9 @@ pub(super) fn before_dispatch(
     lease: &crate::InteractionLease,
 ) {
     let Some(destination) = destination(preflight) else {
+        if TRAVELLED_BEFORE_LEASE.get().is_none() {
+            hidden_cue::present(target.adapter, target.context, target.entry);
+        }
         return;
     };
     let travelled = TRAVELLED_BEFORE_LEASE.get();

@@ -42,9 +42,9 @@ pub use phase::CursorPhase;
 pub use pose::CursorPose;
 pub use style::{CODEX_ACCENT, CursorLook, CursorOverlayStyle};
 pub(crate) use submit::{
-    cancel_drag, confirms_delivery, dispatch_mouse_event_with_cursor, input_was_delivered, submit,
-    submit_caret, submit_caret_follow, submit_drag, submit_drag_effect, submit_travel,
-    submit_travel_before_lease,
+    cancel_drag, confirms_delivery, dispatch_mouse_event_with_cursor, input_was_delivered,
+    present_cue, submit, submit_caret, submit_caret_follow, submit_drag, submit_drag_effect,
+    submit_travel, submit_travel_before_lease,
 };
 pub use submit::{present_window_cue, window_cue_point};
 pub use timing::{

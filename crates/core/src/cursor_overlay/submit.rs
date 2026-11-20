@@ -203,20 +203,34 @@ pub fn present_window_cue(
     if window.validate().is_err() || window.width < 1.0 || window.height < 1.0 {
         return false;
     }
+    present_cue(
+        adapter,
+        context,
+        window_cue_point(window),
+        Some(*window),
+        narration,
+    )
+}
+
+/// Glides the cursor to `point` with a short narration, outlining `outline`
+/// on arrival when given. Presentation only; returns whether it was drawn.
+pub(crate) fn present_cue(
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+    point: Point,
+    outline: Option<Rect>,
+    narration: &str,
+) -> bool {
     let Ok(deadline) = crate::Deadline::detached_after(crate::CURSOR_ARRIVAL_TIMEOUT_MS) else {
         return false;
     };
     let _scope = crate::wait::deadline::enter_scope(Some(deadline));
-    let instruction = super::CursorOverlayInstruction::new(
-        window_cue_point(window),
-        context.cursor_overlay(),
-        false,
-    )
-    .map(|instruction| {
-        instruction
-            .with_target(Some(*window))
-            .with_narration(Some(narration))
-    });
+    let instruction = super::CursorOverlayInstruction::new(point, context.cursor_overlay(), false)
+        .map(|instruction| {
+            instruction
+                .with_target(outline)
+                .with_narration(Some(narration))
+        });
     send(adapter, context, instruction)
 }
 
