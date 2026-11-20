@@ -21,3 +21,11 @@ fn a_helper_cursor_never_starts_on_another_helpers_landing() {
     assert!(!resumes_shared_landing(false, Some("calc")));
     assert!(!resumes_shared_landing(true, None));
 }
+
+#[test]
+fn a_long_session_intro_is_held_whole() {
+    let intro = "Starting session: I will format a note in TextEdit and add a sum";
+    let note = still(&Point { x: 10.0, y: 10.0 }, Some(intro)).unwrap();
+    assert_eq!(note.label(), Some(intro));
+    assert!(!note.is_narrated());
+}

@@ -76,3 +76,12 @@ fn a_label_that_is_not_narration_is_left_alone() {
 
     assert_eq!(quiet.clone().named_for(Some("calc")).label(), quiet.label());
 }
+
+#[test]
+fn a_note_is_kept_whole_and_blank_keeps_the_label() {
+    let note = "Starting session: one two three four five six seven eight nine ten eleven twelve";
+    let held = instruction(10.0, CursorPhase::Travel).with_note(Some(note));
+    assert_eq!(held.label(), Some(note));
+    assert!(!held.is_narrated());
+    assert_eq!(held.clone().with_note(Some("  ")).label(), Some(note));
+}

@@ -65,6 +65,17 @@ impl CursorOverlayInstruction {
         self
     }
 
+    /// Sets a note the cursor holds while it stands still, such as a
+    /// session's opening "Starting session: ...", whole. Its length was
+    /// already bounded where it was written, so no word limit cuts it short.
+    /// Blank text keeps the configured label.
+    pub fn with_note(mut self, note: Option<&str>) -> Self {
+        if let Some(text) = note.map(str::trim).filter(|text| !text.is_empty()) {
+            self.label = Some(text.to_owned());
+        }
+        self
+    }
+
     /// With several agents on screen, puts the agent's name before what it
     /// is doing, such as "calc · Clicking 5", so a watcher can tell the
     /// cursors apart. A label that already names the agent is kept.

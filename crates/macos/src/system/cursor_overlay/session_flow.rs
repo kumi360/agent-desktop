@@ -28,8 +28,8 @@ pub(super) fn still(
     point: &Point,
     label: Option<&str>,
 ) -> Result<CursorOverlayInstruction, AdapterError> {
-    let config = CursorOverlayConfig::enabled(label.map(str::to_owned), 12)?;
-    CursorOverlayInstruction::new(point.clone(), &config, false)
+    let config = CursorOverlayConfig::enabled(None, 12)?;
+    Ok(CursorOverlayInstruction::new(point.clone(), &config, false)?.with_note(label))
 }
 
 /// Draws the opening: the cursor fades in where it is (or at the centre of
