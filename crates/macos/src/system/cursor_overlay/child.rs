@@ -173,7 +173,12 @@ fn handle(control: &CursorOverlayControl, state: &mut OverlayState) -> Result<bo
         return open(control, state);
     };
     let carried = state.cues.carry(sent);
-    let instruction = carried.as_ref().unwrap_or(sent);
+    let named = carried
+        .as_ref()
+        .unwrap_or(sent)
+        .clone()
+        .named_for(control.agent_id());
+    let instruction = &named;
     render(instruction, state)?;
     state.cues.drawn(instruction, Instant::now());
     apply_landing_memory(control, state, Some(instruction));

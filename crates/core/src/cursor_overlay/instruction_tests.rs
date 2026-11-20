@@ -51,3 +51,28 @@ fn only_a_narration_marks_the_label_as_fading() {
     assert!(back.is_narrated());
     assert_eq!(back.label(), Some("Restoring TextEdit"));
 }
+
+#[test]
+fn each_agent_names_itself_before_what_it_is_doing() {
+    let narrated = instruction(10.0, CursorPhase::Travel).with_narration(Some("Clicking 5"));
+
+    assert_eq!(
+        narrated.clone().named_for(Some("calc")).label(),
+        Some("calc · Clicking 5")
+    );
+    assert_eq!(narrated.clone().named_for(None).label(), Some("Clicking 5"));
+    assert_eq!(
+        narrated
+            .named_for(Some("calc"))
+            .named_for(Some("calc"))
+            .label(),
+        Some("calc · Clicking 5")
+    );
+}
+
+#[test]
+fn a_label_that_is_not_narration_is_left_alone() {
+    let quiet = instruction(10.0, CursorPhase::Travel);
+
+    assert_eq!(quiet.clone().named_for(Some("calc")).label(), quiet.label());
+}

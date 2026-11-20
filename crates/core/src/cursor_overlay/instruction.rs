@@ -65,6 +65,22 @@ impl CursorOverlayInstruction {
         self
     }
 
+    /// With several agents on screen, puts the agent's name before what it
+    /// is doing, such as "calc · Clicking 5", so a watcher can tell the
+    /// cursors apart. A label that already names the agent is kept.
+    pub fn named_for(mut self, agent_id: Option<&str>) -> Self {
+        let Some(agent) = agent_id.map(str::trim).filter(|agent| !agent.is_empty()) else {
+            return self;
+        };
+        if let Some(label) = self.label.as_deref()
+            && self.narrated
+            && !label.starts_with(agent)
+        {
+            self.label = Some(format!("{agent} · {label}"));
+        }
+        self
+    }
+
     /// Whether the label narrates this one action rather than naming the
     /// agent, so renderers let it fade once the action settles.
     pub const fn is_narrated(&self) -> bool {

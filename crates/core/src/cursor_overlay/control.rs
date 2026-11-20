@@ -2,7 +2,7 @@ use super::{CursorMotionProfile, CursorOverlayInstruction, CursorOverlayStyle, C
 use crate::{AdapterError, ErrorCode, context::validate_session_id, session::validate_agent_id};
 use serde::{Deserialize, Serialize};
 
-pub const CURSOR_OVERLAY_GREETING: &str = "Hey, let's play with this computer!";
+pub const CURSOR_OVERLAY_GREETING: &str = "Starting session";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]

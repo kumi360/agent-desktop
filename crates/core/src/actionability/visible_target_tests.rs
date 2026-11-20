@@ -228,3 +228,48 @@ fn an_unproven_semantic_hit_test_draws_the_visible_centre_and_a_timeout_ends_it(
     let error = run(&fake, Action::Click, PointerDelivery::Semantic, None, true).unwrap_err();
     assert_eq!(error.code, ErrorCode::Timeout);
 }
+
+#[test]
+fn typing_into_a_minimized_window_is_refused_with_the_way_back() {
+    let fake = Fake::new(
+        TargetVisibility::Hidden {
+            reason: "its window is minimized".into(),
+        },
+        HitTestResult::ReachesTarget,
+    );
+    let error = run(
+        &fake,
+        Action::TypeText("x".into()),
+        PointerDelivery::NotApplicable,
+        None,
+        true,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::ActionFailed);
+    assert!(error.message.contains("minimized"));
+    assert!(
+        error
+            .suggestion
+            .as_deref()
+            .is_some_and(|text| text.contains("restore"))
+    );
+    assert_eq!(error.disposition, crate::DeliverySemantics::not_delivered());
+}
+
+#[test]
+fn typing_into_a_visible_or_unknown_window_is_not_gated() {
+    for visibility in [visible(), TargetVisibility::Unknown] {
+        let fake = Fake::new(visibility, HitTestResult::ReachesTarget);
+        assert_eq!(
+            run(
+                &fake,
+                Action::TypeText("x".into()),
+                PointerDelivery::NotApplicable,
+                None,
+                true
+            )
+            .unwrap(),
+            None
+        );
+    }
+}

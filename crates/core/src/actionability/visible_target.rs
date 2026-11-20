@@ -44,8 +44,13 @@ pub(crate) struct VisibleTargetInput<'a> {
 pub(crate) fn visible_target(
     input: VisibleTargetInput<'_>,
 ) -> Result<Option<VisibleTarget>, AdapterError> {
-    if !input.request.action.requires_hit_test()
-        || matches!(input.pointer_delivery, PointerDelivery::NotApplicable)
+    if !input.request.action.requires_hit_test() {
+        if changes_content(&input.request.action) {
+            refuse_minimized(&input)?;
+        }
+        return Ok(None);
+    }
+    if matches!(input.pointer_delivery, PointerDelivery::NotApplicable)
         || input
             .adapter
             .is_nonspatial_target_with_deadline(input.handle, input.deadline)
@@ -130,6 +135,41 @@ fn hidden_error(reason: &str, delivery: PointerDelivery) -> AdapterError {
         "The element is not visible on screen. Bring its window forward or scroll it into view, then take a fresh snapshot and click the new ref.",
     )
     .with_disposition(crate::DeliverySemantics::not_delivered())
+}
+
+fn changes_content(action: &crate::Action) -> bool {
+    matches!(
+        action,
+        crate::Action::TypeText(_)
+            | crate::Action::SetValue(_)
+            | crate::Action::Clear
+            | crate::Action::Toggle
+            | crate::Action::Check
+            | crate::Action::Uncheck
+            | crate::Action::Select(_)
+    )
+}
+
+/// An action that does not aim the pointer, such as typing, could still
+/// change a window nobody can see. A minimized one is refused with the way
+/// back, so the person watching sees every change happen.
+fn refuse_minimized(input: &VisibleTargetInput<'_>) -> Result<(), AdapterError> {
+    match input
+        .adapter
+        .target_visibility(input.handle, input.deadline)
+    {
+        Ok(TargetVisibility::Hidden { reason }) if reason.contains("minimized") => Err(
+            AdapterError::new(
+                ErrorCode::ActionFailed,
+                "The target's window is minimized, so nothing was done",
+            )
+            .with_suggestion(
+                "Restore the window first with `agent-desktop restore --app <App>`, then try again so the change happens where it can be seen.",
+            )
+            .with_disposition(crate::DeliverySemantics::not_delivered()),
+        ),
+        _ => Ok(()),
+    }
 }
 
 fn contains(bounds: Rect, point: &Point) -> bool {

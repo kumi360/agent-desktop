@@ -164,7 +164,7 @@ fn control_protocol_carries_the_session_lifecycle() {
     let disable = CursorOverlayControl::disable("run-1".into());
 
     assert_eq!(enable.session_id(), "run-1");
-    assert_eq!(enable.label(), Some("Hey, let's play with this computer!"));
+    assert_eq!(enable.label(), Some("Starting session"));
     assert!(enable.is_enable());
     assert_eq!(disable.session_id(), "run-1");
     assert!(disable.is_disable());
