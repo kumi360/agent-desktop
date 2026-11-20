@@ -27,6 +27,8 @@ pub(super) fn launch(
     adapter: &dyn PlatformAdapter,
     context: &CommandContext,
 ) -> Result<Value, AppError> {
+    let opening = window_cue::named("Opening", Some(&args.app));
+    let shown = window_cue::before(adapter, context, Some(&args.app), None, &opening);
     let value = launch_command::execute(
         launch_command::LaunchArgs {
             app: args.app.clone(),
@@ -34,9 +36,11 @@ pub(super) fn launch(
         },
         adapter,
     )?;
-    window_cue::after(adapter, context, &value, Some(&args.app), |app| {
-        window_cue::named("Opening", app)
-    });
+    if !shown {
+        window_cue::after(adapter, context, &value, Some(&args.app), |app| {
+            window_cue::named("Opening", app)
+        });
+    }
     Ok(value)
 }
 
@@ -45,13 +49,8 @@ pub(super) fn close_app(
     adapter: &dyn PlatformAdapter,
     context: &CommandContext,
 ) -> Result<Value, AppError> {
-    window_cue::before(
-        adapter,
-        context,
-        Some(&args.app),
-        None,
-        &window_cue::named("Closing", Some(&args.app)),
-    );
+    let closing = window_cue::named("Closing", Some(&args.app));
+    window_cue::before(adapter, context, Some(&args.app), None, &closing);
     close_app_command::execute(
         close_app_command::CloseAppArgs {
             app: args.app,
@@ -117,6 +116,14 @@ pub(super) fn focus_window(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.app.clone();
+    let switching = window_cue::named("Switching to", app.as_deref());
+    let shown = window_cue::before(
+        adapter,
+        context,
+        app.as_deref(),
+        args.window_id.as_deref(),
+        &switching,
+    );
     let value = focus_window_command::execute(
         focus_window_command::FocusWindowArgs {
             window_id: args.window_id,
@@ -125,9 +132,11 @@ pub(super) fn focus_window(
         },
         adapter,
     )?;
-    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-        window_cue::named("Switching to", app)
-    });
+    if !shown {
+        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+            window_cue::named("Switching to", app)
+        });
+    }
     Ok(value)
 }
 
@@ -137,6 +146,14 @@ pub(super) fn resize_window(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
+    let cue = window_cue::named("Resizing", app.as_deref());
+    let shown = window_cue::before(
+        adapter,
+        context,
+        app.as_deref(),
+        args.scope.window_id.as_deref(),
+        &cue,
+    );
     let value = resize_window_command::execute(
         resize_window_command::ResizeWindowArgs {
             app: args.scope.app,
@@ -146,9 +163,11 @@ pub(super) fn resize_window(
         },
         adapter,
     )?;
-    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-        window_cue::named("Resizing", app)
-    });
+    if !shown {
+        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+            window_cue::named("Resizing", app)
+        });
+    }
     Ok(value)
 }
 
@@ -158,6 +177,14 @@ pub(super) fn move_window(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
+    let cue = window_cue::named("Moving", app.as_deref());
+    let shown = window_cue::before(
+        adapter,
+        context,
+        app.as_deref(),
+        args.scope.window_id.as_deref(),
+        &cue,
+    );
     let value = move_window_command::execute(
         move_window_command::MoveWindowArgs {
             app: args.scope.app,
@@ -167,9 +194,11 @@ pub(super) fn move_window(
         },
         adapter,
     )?;
-    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-        window_cue::named("Moving", app)
-    });
+    if !shown {
+        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+            window_cue::named("Moving", app)
+        });
+    }
     Ok(value)
 }
 
@@ -178,12 +207,14 @@ pub(super) fn minimize(
     adapter: &dyn PlatformAdapter,
     context: &CommandContext,
 ) -> Result<Value, AppError> {
+    let scope = &args.scope;
+    let minimizing = window_cue::named("Minimizing", scope.app.as_deref());
     window_cue::before(
         adapter,
         context,
-        args.scope.app.as_deref(),
-        args.scope.window_id.as_deref(),
-        &window_cue::named("Minimizing", args.scope.app.as_deref()),
+        scope.app.as_deref(),
+        scope.window_id.as_deref(),
+        &minimizing,
     );
     minimize_command::execute(
         helpers::AppArgs {
@@ -200,6 +231,14 @@ pub(super) fn maximize(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
+    let cue = window_cue::named("Maximizing", app.as_deref());
+    let shown = window_cue::before(
+        adapter,
+        context,
+        app.as_deref(),
+        args.scope.window_id.as_deref(),
+        &cue,
+    );
     let value = maximize_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
@@ -207,9 +246,11 @@ pub(super) fn maximize(
         },
         adapter,
     )?;
-    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-        window_cue::named("Maximizing", app)
-    });
+    if !shown {
+        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+            window_cue::named("Maximizing", app)
+        });
+    }
     Ok(value)
 }
 
@@ -219,6 +260,14 @@ pub(super) fn restore(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
+    let cue = window_cue::named("Restoring", app.as_deref());
+    let shown = window_cue::before(
+        adapter,
+        context,
+        app.as_deref(),
+        args.scope.window_id.as_deref(),
+        &cue,
+    );
     let value = restore_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
@@ -226,8 +275,10 @@ pub(super) fn restore(
         },
         adapter,
     )?;
-    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-        window_cue::named("Restoring", app)
-    });
+    if !shown {
+        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+            window_cue::named("Restoring", app)
+        });
+    }
     Ok(value)
 }

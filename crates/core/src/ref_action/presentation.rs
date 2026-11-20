@@ -28,8 +28,10 @@ pub(super) fn before_dispatch(
         }
         return;
     };
-    let travelled = TRAVELLED_BEFORE_LEASE.get();
-    if travelled.is_some_and(|(x, y)| (destination.x - x).hypot(destination.y - y) < SAME_POINT) {
+    if TRAVELLED_BEFORE_LEASE
+        .get()
+        .is_some_and(|travelled| already_there(preflight, &destination, travelled))
+    {
         return;
     }
     TRAVELLED_BEFORE_LEASE.set(None);
@@ -130,6 +132,26 @@ pub(super) fn effect_ripples(target: &ResolvedRefAction<'_>, action: &Action) ->
             crate::tree::state::has_state(&state.states, crate::tree::state::FOCUSED)
         });
     !focused
+}
+
+/// Whether the travel made before the lease already reached the element, so
+/// a second glide would only wander: the cursor sits on the planned point, or
+/// anywhere inside the element's bounds (a long text area's planned point can
+/// lie off screen, below its visible part). A physical click still goes to
+/// its verified point, so the drawn cursor follows the real one there.
+fn already_there(
+    preflight: &ActionabilityPreflight,
+    destination: &crate::Point,
+    (x, y): (f64, f64),
+) -> bool {
+    let point = crate::Point { x, y };
+    (destination.x - x).hypot(destination.y - y) < SAME_POINT
+        || (!matches!(
+            preflight.pointer_delivery,
+            crate::actionability::PointerDelivery::Physical
+        ) && preflight
+            .presentation_bounds
+            .is_some_and(|bounds| contains(&bounds, &point)))
 }
 
 fn contains(bounds: &crate::Rect, point: &crate::Point) -> bool {

@@ -11,20 +11,24 @@ use agent_desktop_core::{
 use serde_json::Value;
 
 /// Shows the cue for a window that already exists before the command acts
-/// on it, such as a window about to be minimized or an app about to close.
+/// on it, so the label is read before anything on screen changes. Returns
+/// whether a cue was shown; a command whose window does not exist yet (an
+/// app being launched) shows its cue after it acts instead.
 pub(super) fn before(
     adapter: &dyn PlatformAdapter,
     context: &CommandContext,
     app: Option<&str>,
     window_id: Option<&str>,
     narration: &str,
-) {
+) -> bool {
     if context.overlay_key().is_none() {
-        return;
+        return false;
     }
-    if let Some(bounds) = lookup(adapter, app, window_id) {
-        present_window_cue(adapter, context, &bounds, narration);
-    }
+    let Some(bounds) = lookup(adapter, app, window_id) else {
+        return false;
+    };
+    present_window_cue(adapter, context, &bounds, narration);
+    true
 }
 
 /// Shows the cue after a command succeeded, using the window the result
