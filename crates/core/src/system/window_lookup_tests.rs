@@ -155,3 +155,47 @@ fn an_empty_window_selection_is_not_delivered_and_safe_to_retry() {
     assert_eq!(error.disposition, crate::DeliverySemantics::not_delivered());
     assert_eq!(error.disposition.retry(), crate::RetryDisposition::Safe);
 }
+
+fn sized(id: &str, width: f64, height: f64) -> WindowInfo {
+    WindowInfo {
+        id: id.into(),
+        bounds: Some(crate::Rect {
+            x: 0.0,
+            y: 0.0,
+            width,
+            height,
+        }),
+        state: crate::WindowState {
+            visible: Some(true),
+            accessible: true,
+            ..Default::default()
+        },
+        ..window(Some("generation-a"))
+    }
+}
+
+#[test]
+fn a_tiny_floating_affordance_never_makes_the_app_window_ambiguous() {
+    let picked = select_window(
+        vec![sized("w-tools", 53.0, 48.0), sized("w-doc", 760.0, 560.0)],
+        crate::AdapterError::new(ErrorCode::WindowNotFound, "none"),
+        "ambiguous",
+    )
+    .unwrap();
+    assert_eq!(picked.id, "w-doc");
+}
+
+#[test]
+fn two_document_windows_stay_ambiguous() {
+    let error = select_window(
+        vec![
+            sized("w-a", 760.0, 560.0),
+            sized("w-b", 600.0, 400.0),
+            sized("w-tools", 53.0, 48.0),
+        ],
+        crate::AdapterError::new(ErrorCode::WindowNotFound, "none"),
+        "ambiguous",
+    )
+    .unwrap_err();
+    assert!(matches!(error, AppError::Adapter(ref e) if e.code == ErrorCode::AmbiguousTarget));
+}

@@ -115,6 +115,9 @@ pub(crate) fn select_window(
             return Ok(candidates.swap_remove(0));
         }
     }
+    if let Some(index) = only_document_sized(&candidates) {
+        return Ok(candidates.swap_remove(index));
+    }
     let summaries = candidates
         .iter()
         .take(10)
@@ -135,6 +138,35 @@ pub(crate) fn select_window(
             "candidates": summaries,
         }))
         .into())
+}
+
+/// Below this size a window is a floating affordance, such as the Writing
+/// Tools button macOS shows beside selected text, never the window a person
+/// means by naming the app.
+const AFFORDANCE_MAX: f64 = 96.0;
+
+/// The one candidate big enough to be a document window when every other
+/// candidate is a tiny floating affordance.
+fn only_document_sized(candidates: &[WindowInfo]) -> Option<usize> {
+    let sized = |window: &WindowInfo| {
+        window
+            .bounds
+            .as_ref()
+            .is_some_and(|b| b.width > AFFORDANCE_MAX || b.height > AFFORDANCE_MAX)
+    };
+    let tiny = |window: &WindowInfo| {
+        window
+            .bounds
+            .as_ref()
+            .is_some_and(|b| b.width <= AFFORDANCE_MAX && b.height <= AFFORDANCE_MAX)
+    };
+    let mut documents = candidates.iter().enumerate().filter(|(_, w)| sized(w));
+    let (index, _) = documents.next()?;
+    let rest_tiny = candidates
+        .iter()
+        .enumerate()
+        .all(|(i, window)| i == index || tiny(window));
+    (documents.next().is_none() && rest_tiny).then_some(index)
 }
 
 #[cfg(test)]
