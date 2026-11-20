@@ -284,6 +284,10 @@ fn send_until(
                     .with_platform_detail(error.to_string()),
             )
         }
+        Err(error) if control.is_disable() && !socket.exists() => {
+            tracing::debug!(%error, "cursor overlay had already retired; teardown confirmed");
+            Ok(true)
+        }
         Err(error) => Err(AdapterError::internal(
             "macOS cursor overlay did not acknowledge the control",
         )
