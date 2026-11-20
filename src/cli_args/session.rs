@@ -22,6 +22,12 @@ pub(crate) enum SessionAction {
 pub(crate) struct SessionStartArgs {
     #[arg(long, help = "Optional human-readable session label")]
     pub name: Option<String>,
+    #[arg(
+        long,
+        value_name = "TEXT",
+        help = "What the cursor says as it fades in at the centre of the screen, after \"Starting session: \"; a short summary of the task, such as \"I will open TextEdit and format a note\". Defaults to --name"
+    )]
+    pub intro: Option<String>,
     #[arg(long, help = "Create the session without automatic tracing")]
     pub no_trace: bool,
     #[arg(

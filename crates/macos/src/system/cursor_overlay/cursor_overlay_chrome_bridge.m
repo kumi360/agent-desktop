@@ -369,3 +369,87 @@ void ADShowBubble(NSTextField *text, NSRect frame, bool changed) {
     }
     [bubble orderFrontRegardless];
 }
+
+static __strong NSWindow *ADThinkWindow = nil;
+static const CGFloat ADThinkMargin = 8.0;
+
+// The thinking cue: a small black pill in the label's spot holding a soft
+// accent arc that turns slowly. Under Reduce Motion the ring stays still and
+// breathes instead of turning.
+void ADThinkShow(NSRect pill, bool reduceMotion) {
+    if (ADThinkWindow == nil) {
+        ADThinkWindow = ADWindow(NSMakeRect(0.0, 0.0, 1.0, 1.0));
+    }
+    if (ADThinkWindow.isVisible) {
+        return;
+    }
+    CALayer *surface = ADThinkWindow.contentView.layer;
+    surface.sublayers = nil;
+    [ADThinkWindow setFrame:NSInsetRect(pill, -ADThinkMargin, -ADThinkMargin) display:NO];
+    CGFloat width = pill.size.width;
+    CGFloat height = pill.size.height;
+    CALayer *background = [CALayer layer];
+    background.frame = CGRectMake(ADThinkMargin, ADThinkMargin, width, height);
+    background.backgroundColor = NSColor.blackColor.CGColor;
+    background.cornerRadius = height / 2.0;
+    background.shadowColor = NSColor.blackColor.CGColor;
+    background.shadowOpacity = 0.31f;
+    background.shadowRadius = 2.5;
+    background.shadowOffset = CGSizeMake(0.0, -2.0);
+    ADFreezeLayer(background);
+    [surface addSublayer:background];
+    CGFloat diameter = height - 10.0;
+    CGRect ring = CGRectMake(ADThinkMargin + (width - diameter) / 2.0,
+                             ADThinkMargin + (height - diameter) / 2.0, diameter, diameter);
+    CGPathRef circle =
+        CGPathCreateWithEllipseInRect(CGRectMake(1.0, 1.0, diameter - 2.0, diameter - 2.0), NULL);
+    CAShapeLayer *track = [CAShapeLayer layer];
+    track.frame = ring;
+    track.path = circle;
+    track.fillColor = NSColor.clearColor.CGColor;
+    track.strokeColor = [NSColor colorWithWhite:1.0 alpha:0.16].CGColor;
+    track.lineWidth = 2.0;
+    ADFreezeLayer(track);
+    [surface addSublayer:track];
+    CAShapeLayer *arc = [CAShapeLayer layer];
+    arc.frame = ring;
+    arc.path = circle;
+    arc.fillColor = NSColor.clearColor.CGColor;
+    arc.strokeColor = ADAccent(1.0);
+    arc.lineWidth = 2.0;
+    arc.lineCap = kCALineCapRound;
+    arc.strokeEnd = reduceMotion ? 1.0 : 0.3;
+    ADFreezeLayer(arc);
+    [surface addSublayer:arc];
+    CGPathRelease(circle);
+    if (reduceMotion) {
+        CABasicAnimation *breathe = [CABasicAnimation animationWithKeyPath:@"opacity"];
+        breathe.fromValue = @0.45;
+        breathe.toValue = @1.0;
+        breathe.duration = 1.2;
+        breathe.autoreverses = YES;
+        breathe.repeatCount = HUGE_VALF;
+        [arc addAnimation:breathe forKey:@"agent-think-breathe"];
+    } else {
+        CABasicAnimation *turn = [CABasicAnimation animationWithKeyPath:@"transform.rotation.z"];
+        turn.fromValue = @0.0;
+        turn.toValue = @(-2.0 * M_PI);
+        turn.duration = 1.1;
+        turn.repeatCount = HUGE_VALF;
+        [arc addAnimation:turn forKey:@"agent-think-turn"];
+        CABasicAnimation *fade = [CABasicAnimation animationWithKeyPath:@"opacity"];
+        fade.fromValue = @0.0;
+        fade.toValue = @1.0;
+        fade.duration = 0.2;
+        [surface addAnimation:fade forKey:@"agent-think-fade"];
+    }
+    [ADThinkWindow orderFrontRegardless];
+}
+
+void ADThinkStop(void) {
+    if (ADThinkWindow == nil) {
+        return;
+    }
+    [ADThinkWindow orderOut:nil];
+    ADThinkWindow.contentView.layer.sublayers = nil;
+}

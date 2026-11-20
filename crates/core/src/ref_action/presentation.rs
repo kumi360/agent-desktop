@@ -4,6 +4,8 @@ use super::{ActionabilityPreflight, ResolvedRefAction};
 use crate::cursor_overlay::CursorPhase;
 use crate::{Action, CommandContext, PlatformAdapter};
 
+#[path = "announce.rs"]
+mod announce;
 #[path = "hidden_cue.rs"]
 mod hidden_cue;
 
@@ -32,12 +34,13 @@ pub(super) fn before_dispatch(
     }
     TRAVELLED_BEFORE_LEASE.set(None);
     let pointer = shows_pointer(&target.entry.identity.role, action);
+    let narration = announce::narration(target.entry, action);
     crate::cursor_overlay::submit_travel(
         target.adapter,
         target.context,
         destination,
         lease,
-        pointer,
+        crate::cursor_overlay::TravelCue::new(pointer, Some(&narration)),
     );
 }
 
@@ -63,12 +66,13 @@ pub(super) fn before_lease(
         return;
     };
     let pointer = shows_pointer(&context.entry.identity.role, &request.action);
+    let narration = announce::narration(context.entry, &request.action);
     if crate::cursor_overlay::submit_travel_before_lease(
         context.adapter,
         context.context,
         destination.clone(),
         deadline,
-        pointer,
+        crate::cursor_overlay::TravelCue::new(pointer, Some(&narration)),
     ) {
         TRAVELLED_BEFORE_LEASE.set(Some((destination.x, destination.y)));
     }

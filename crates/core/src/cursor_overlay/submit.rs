@@ -33,9 +33,9 @@ pub(crate) fn submit_travel_before_lease(
     context: &CommandContext,
     destination: Point,
     deadline: crate::Deadline,
-    pointer: bool,
+    cue: super::TravelCue<'_>,
 ) -> bool {
-    travel_within(adapter, context, destination, deadline, pointer)
+    travel_within(adapter, context, destination, deadline, cue)
 }
 
 /// Moves the drawn cursor to `destination` before an action; `pointer` arrives showing the
@@ -47,9 +47,9 @@ pub(crate) fn submit_travel(
     context: &CommandContext,
     destination: Point,
     lease: &crate::InteractionLease,
-    pointer: bool,
+    cue: super::TravelCue<'_>,
 ) {
-    travel_within(adapter, context, destination, lease.deadline(), pointer);
+    travel_within(adapter, context, destination, lease.deadline(), cue);
 }
 
 fn travel_within(
@@ -57,19 +57,21 @@ fn travel_within(
     context: &CommandContext,
     destination: Point,
     deadline: crate::Deadline,
-    pointer: bool,
+    cue: super::TravelCue<'_>,
 ) -> bool {
     let Some(_scope) = travel_scope_within(deadline) else {
         return false;
     };
-    let instruction =
-        super::CursorOverlayInstruction::new(destination, context.cursor_overlay(), false).map(
-            |instruction| {
-                instruction.with_pointer(
-                    pointer && context.cursor_overlay().style().pointer_image().is_some(),
-                )
-            },
-        );
+    let instruction = super::CursorOverlayInstruction::new(
+        destination,
+        context.cursor_overlay(),
+        false,
+    )
+    .map(|instruction| {
+        instruction
+            .with_pointer(cue.pointer && context.cursor_overlay().style().pointer_image().is_some())
+            .with_narration(cue.narration)
+    });
     send(adapter, context, instruction)
 }
 
@@ -301,7 +303,13 @@ pub(crate) fn dispatch_mouse_event_with_cursor(
     lease: &crate::InteractionLease,
 ) -> Result<OperationReport, AdapterError> {
     let point = event.point.clone();
-    crate::cursor_overlay::submit_travel(adapter, context, point.clone(), lease, click);
+    crate::cursor_overlay::submit_travel(
+        adapter,
+        context,
+        point.clone(),
+        lease,
+        super::TravelCue::new(click, None),
+    );
     let result = adapter.mouse_event(event, lease);
     if crate::cursor_overlay::input_was_delivered(&result) {
         crate::cursor_overlay::submit(

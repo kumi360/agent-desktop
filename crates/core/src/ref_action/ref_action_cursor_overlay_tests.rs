@@ -178,7 +178,7 @@ fn enabled_cursor_moves_before_dispatch_then_clicks_after_it() {
         "the click effect lands after dispatch confirms"
     );
     assert_eq!(click.target().map(|rect| rect.width), Some(20.0));
-    assert_eq!(presented[0].label(), Some("Opening menu"));
+    assert_eq!(presented[0].label(), Some("Clicking Run"));
     assert_eq!(
         *adapter.events.lock().unwrap(),
         [

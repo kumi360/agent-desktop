@@ -1,4 +1,5 @@
 use super::*;
+use agent_desktop_core::CursorOverlayConfig;
 
 fn screen() -> agent_desktop_core::Rect {
     agent_desktop_core::Rect {

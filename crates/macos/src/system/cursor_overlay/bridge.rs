@@ -1,14 +1,18 @@
 use agent_desktop_core::{
-    AdapterError, CURSOR_HIGHLIGHT_HOLD_MS, CursorImage, CursorLook, CursorOverlayInstruction,
-    CursorOverlayStyle, CursorPhase, CursorPose, ErrorCode, LabelPill, Point, Rect, place_label,
+    AdapterError, CURSOR_ANNOUNCE_LEAD_MS, CURSOR_HIGHLIGHT_HOLD_MS, CursorImage, CursorLook,
+    CursorOverlayInstruction, CursorOverlayStyle, CursorPhase, CursorPose, ErrorCode, LabelPill,
+    Point, Rect, place_label,
 };
 use std::ffi::{CString, c_char};
 
+const ANNOUNCE_FIRST: u8 = 1 << 0;
 const REDUCE_MOTION: u8 = 1 << 2;
 const HIGHLIGHT: u8 = 1 << 3;
 const POINT_ON_ARRIVAL: u8 = 1 << 4;
 const ARROW_ON_DEPARTURE: u8 = 1 << 5;
 const ARROW_AFTER_EFFECT: u8 = 1 << 6;
+const FADE_IN: u8 = 1 << 7;
+const THINK_PILL: (f64, f64) = (38.0, 24.0);
 const ARROW_SLOT: u8 = 0;
 const POINTER_SLOT: u8 = 1;
 
@@ -35,7 +39,19 @@ struct NativeRenderConfig {
     bubble: [f64; 4],
     target: [f64; 4],
     highlight_seconds: f64,
+    lead_seconds: f64,
     flags: u8,
+}
+
+/// How one render is paced and introduced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RenderPace {
+    pub(super) fps: u32,
+    pub(super) reduce_motion: bool,
+    /// The label shows where the cursor is, for a moment, before it moves.
+    pub(super) announce: bool,
+    /// The cursor fades in where it starts, as at a session's opening.
+    pub(super) fade_in: bool,
 }
 
 unsafe extern "C" {
@@ -71,6 +87,16 @@ unsafe extern "C" {
     fn agent_desktop_cursor_overlay_rest();
     fn agent_desktop_cursor_overlay_show();
     fn agent_desktop_cursor_overlay_fade_label();
+    fn agent_desktop_cursor_overlay_fade_out(seconds: f64);
+    fn agent_desktop_cursor_overlay_hold(seconds: f64);
+    fn agent_desktop_cursor_overlay_think(
+        on: bool,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        reduce_motion: bool,
+    );
     fn agent_desktop_cursor_overlay_stop();
 }
 
@@ -170,11 +196,13 @@ fn reduce_motion_requested() -> bool {
 
 pub(super) fn run(
     poses: &[CursorPose],
-    fps: u32,
+    pace: RenderPace,
     instruction: &CursorOverlayInstruction,
-    reduce_motion: bool,
     screen: &Rect,
 ) -> Result<(), AdapterError> {
+    let RenderPace {
+        fps, reduce_motion, ..
+    } = pace;
     let frames = poses
         .iter()
         .map(|pose| NativeCursorFrame {
@@ -213,6 +241,12 @@ pub(super) fn run(
         flags |= HIGHLIGHT;
     }
     flags |= pointer_flags(instruction);
+    if pace.announce && instruction.label().is_some() && poses.len() > 1 {
+        flags |= ANNOUNCE_FIRST;
+    }
+    if pace.fade_in {
+        flags |= FADE_IN;
+    }
     let config = NativeRenderConfig {
         frame_seconds: 1.0 / f64::from(fps),
         label: label
@@ -221,6 +255,7 @@ pub(super) fn run(
         bubble,
         target: target.unwrap_or_default(),
         highlight_seconds: CURSOR_HIGHLIGHT_HOLD_MS as f64 / 1_000.0,
+        lead_seconds: CURSOR_ANNOUNCE_LEAD_MS as f64 / 1_000.0,
         flags,
     };
     if unsafe { agent_desktop_cursor_overlay_run(frames.as_ptr(), frames.len(), &config) } {
@@ -281,6 +316,12 @@ pub(super) fn rest() {
     unsafe { agent_desktop_cursor_overlay_rest() }
 }
 
+/// Fades the cursor and its label out over `seconds`, then takes them off
+/// screen.
+pub(super) fn fade_out(seconds: f64) {
+    unsafe { agent_desktop_cursor_overlay_fade_out(seconds) }
+}
+
 pub(super) fn hide() {
     unsafe { agent_desktop_cursor_overlay_hide() }
 }
@@ -288,6 +329,34 @@ pub(super) fn hide() {
 /// Fades the label away and clears it, leaving the cursor where it is.
 pub(super) fn fade_label() {
     unsafe { agent_desktop_cursor_overlay_fade_label() }
+}
+
+/// Keeps the overlay live and still for `duration`, so a note can be read.
+pub(super) fn hold(duration: std::time::Duration) {
+    unsafe { agent_desktop_cursor_overlay_hold(duration.as_secs_f64()) }
+}
+
+/// Shows the small thinking spinner in the label's spot beside the cursor at
+/// `at`, or takes it away when `at` is `None`.
+pub(super) fn think(at: Option<&Point>) {
+    let Some(at) = at else {
+        unsafe { agent_desktop_cursor_overlay_think(false, 0.0, 0.0, 0.0, 0.0, false) };
+        return;
+    };
+    let Ok((screen, _, reduce_motion)) = screen_at(at) else {
+        return;
+    };
+    let spot = place_label(at, THINK_PILL, &screen);
+    unsafe {
+        agent_desktop_cursor_overlay_think(
+            true,
+            spot.x,
+            spot.y,
+            spot.width,
+            spot.height,
+            reduce_motion,
+        )
+    }
 }
 
 pub(super) fn show() {

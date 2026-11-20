@@ -16,9 +16,12 @@ typedef struct {
     double bubble[4];
     double target[4];
     double highlightSeconds;
+    double leadSeconds;
     uint8_t flags;
 } AgentDesktopCursorRenderConfig;
 
+static const uint8_t ADAnnounceFirst = 1 << 0;
+static const uint8_t ADFadeIn = 1 << 7;
 static const uint8_t ADReduceMotion = 1 << 2;
 static const uint8_t ADHighlightCue = 1 << 3;
 static const uint8_t ADPointOnArrival = 1 << 4;
@@ -246,6 +249,7 @@ void agent_desktop_cursor_overlay_idle(void) {
 }
 
 void agent_desktop_cursor_overlay_stop(void) {
+    ADThinkStop();
     ADOrbTrailClear();
     ADCodexReset();
     ADDragCancel();
@@ -293,12 +297,24 @@ void agent_desktop_cursor_overlay_caret_follow(bool present, double x, double y,
     }
 }
 
+void agent_desktop_cursor_overlay_fade_out(double seconds);
+
 void agent_desktop_cursor_overlay_rest(void) {
+    agent_desktop_cursor_overlay_fade_out(0.16);
+}
+
+void agent_desktop_cursor_overlay_fade_out(double seconds) {
+    ADThinkStop();
     @autoreleasepool {
         NSApplication *app = NSApplication.sharedApplication;
-        for (double step = 1.0; step > 0.0; step -= 0.08) {
-            ADCursorWindow.alphaValue = step;
-            ADBubbleWindow.alphaValue = step;
+        NSDate *start = NSDate.date;
+        double span = MAX(seconds, 0.016);
+        for (;;) {
+            double done = -start.timeIntervalSinceNow / span;
+            if (done >= 1.0) break;
+            double eased = 1.0 - done * done * (3.0 - 2.0 * done);
+            ADCursorWindow.alphaValue = eased;
+            ADBubbleWindow.alphaValue = eased;
             ADPump(app);
             [NSThread sleepForTimeInterval:0.012];
         }
@@ -314,6 +330,7 @@ void agent_desktop_cursor_overlay_rest(void) {
 }
 
 void agent_desktop_cursor_overlay_hide(void) {
+    ADThinkStop();
     ADOrbTrailClear();
     ADCodexReset();
     ADDragCancel();
@@ -396,6 +413,52 @@ void agent_desktop_cursor_overlay_show(void) {
     }
 }
 
+// Keeps the screen live for `seconds` while nothing moves: a label being
+// read before the step it announces, or a note before the cursor leaves.
+static void ADHold(NSApplication *app, double seconds) {
+    CFTimeInterval until = CACurrentMediaTime() + seconds;
+    while (CACurrentMediaTime() < until) {
+        ADOrbTrailTick();
+        ADCodexTick();
+        ADPump(app);
+        [NSThread sleepForTimeInterval:0.012];
+    }
+}
+
+static void ADFadeCursorIn(NSApplication *app, const AgentDesktopCursorFrame *at,
+                           double mainHeight, bool reduceMotion) {
+    ADMoveCursor(at, mainHeight);
+    ADCursorWindow.alphaValue = reduceMotion ? 1.0 : 0.0;
+    [ADCursorWindow orderFrontRegardless];
+    for (double step = 0.0; !reduceMotion && step < 1.0; step += 0.06) {
+        ADCursorWindow.alphaValue = step;
+        ADPump(app);
+        [NSThread sleepForTimeInterval:0.016];
+    }
+    ADCursorWindow.alphaValue = 1.0;
+}
+
+void agent_desktop_cursor_overlay_hold(double seconds) {
+    @autoreleasepool {
+        ADHold(NSApplication.sharedApplication, seconds);
+    }
+}
+
+void agent_desktop_cursor_overlay_think(bool on, double x, double y, double width, double height,
+                                        bool reduceMotion) {
+    @autoreleasepool {
+        if (!on || ADCursorWindow == nil || !ADCursorWindow.isVisible) {
+            ADThinkStop();
+            return;
+        }
+        double mainHeight = CGDisplayBounds(CGMainDisplayID()).size.height;
+        [ADBubbleWindow orderOut:nil];
+        ADBubbleText.stringValue = @"";
+        ADThinkShow(NSMakeRect(x, mainHeight - y - height, width, height), reduceMotion);
+        ADPump(NSApplication.sharedApplication);
+    }
+}
+
 static void ADHighlightTarget(const AgentDesktopCursorRenderConfig *config, double mainHeight) {
     const double *target = config->target;
     ADHighlightShow(NSMakeRect(target[0] - ADHighlightPad,
@@ -433,6 +496,10 @@ bool agent_desktop_cursor_overlay_run(const AgentDesktopCursorFrame *frames,
             }
             ADPointerImageApply(ADCursorWindow, ADPointer);
             bool pointsOnArrival = (config->flags & ADPointOnArrival) != 0;
+            ADThinkStop();
+            if ((config->flags & ADFadeIn) != 0 || !ADCursorWindow.isVisible) {
+                ADFadeCursorIn(app, &frames[0], mainHeight, reduceMotion);
+            }
             [ADCursorWindow orderFrontRegardless];
 
             bool showsBubble =
@@ -463,6 +530,16 @@ bool agent_desktop_cursor_overlay_run(const AgentDesktopCursorFrame *frames,
                 }
             }
             bool highlighted = (config->flags & ADHighlightCue) == 0 || reduceMotion;
+            bool announced = showsBubble && changedLabel &&
+                             (config->flags & ADAnnounceFirst) != 0 && config->leadSeconds > 0.0;
+            if (announced) {
+                ADMoveCursor(&frames[0], mainHeight);
+                NSRect startFrame = NSOffsetRect(bubbleFrame, frames[0].x - last->x,
+                                                 last->y - frames[0].y);
+                ADShowBubble(ADBubbleText, startFrame, !reduceMotion);
+                ADHold(app, config->leadSeconds);
+                followsBubble = movementFrameCount > 1;
+            }
 
             for (size_t index = 0; index < movementFrameCount; index += 1) {
                 ADMoveCursor(&frames[index], mainHeight);
@@ -492,7 +569,8 @@ bool agent_desktop_cursor_overlay_run(const AgentDesktopCursorFrame *frames,
             }
 
             if (showsBubble) {
-                ADShowBubble(ADBubbleText, bubbleFrame, changedLabel && !reduceMotion);
+                ADShowBubble(ADBubbleText, bubbleFrame,
+                             changedLabel && !announced && !reduceMotion);
             } else {
                 [ADBubbleWindow orderOut:nil];
             }

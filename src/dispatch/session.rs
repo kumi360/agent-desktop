@@ -16,13 +16,14 @@ pub(crate) fn dispatch(
         SessionAction::Start(s) => {
             let show_cursor =
                 s.cursor || s.multi_agent || !(s.no_cursor || agent_desktop_core::cursor_env_off());
+            let intro = intro_label(s.intro.as_deref().or(s.name.as_deref()));
             let mut value = session::execute(session::SessionAction::Start {
                 name: s.name,
                 no_trace: s.no_trace,
                 screenshots: s.screenshots,
             })?;
             if show_cursor {
-                show_default_cursor(adapter, &mut value, s.multi_agent)?;
+                show_default_cursor(adapter, &mut value, s.multi_agent, &intro)?;
             }
             Ok(value)
         }
@@ -44,6 +45,7 @@ fn show_default_cursor(
     adapter: &dyn PlatformAdapter,
     value: &mut Value,
     multi_agent: bool,
+    intro: &str,
 ) -> Result<(), AppError> {
     let Some(id) = value
         .get("session_id")
@@ -54,6 +56,7 @@ fn show_default_cursor(
     };
     let config = CursorOverlayConfig::enabled(None, 6)?.with_multi_agent(multi_agent);
     let control = CursorOverlayControl::enable(id.clone(), config.style().clone())
+        .with_label(intro)
         .with_motion(config.motion().clone());
     let enabled = cursor_overlay::execute(
         &id,
@@ -76,6 +79,21 @@ fn show_default_cursor(
         }
     });
     Ok(())
+}
+
+const INTRO_MAX_CHARS: usize = 64;
+
+/// The note the cursor shows as a session starts: "Starting session", and the
+/// task summary after a colon when one is given, clipped to one calm line.
+pub(crate) fn intro_label(summary: Option<&str>) -> String {
+    let Some(summary) = summary.map(str::trim).filter(|summary| !summary.is_empty()) else {
+        return "Starting session".to_owned();
+    };
+    let mut clipped: String = summary.chars().take(INTRO_MAX_CHARS).collect();
+    if summary.chars().count() > INTRO_MAX_CHARS {
+        clipped.push('…');
+    }
+    format!("Starting session: {clipped}")
 }
 
 fn resolve_end_session_id(

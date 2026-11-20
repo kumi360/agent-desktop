@@ -241,6 +241,7 @@ struct BatchSessionActionArgs {
 #[serde(deny_unknown_fields)]
 struct BatchSessionStartArgs {
     name: Option<String>,
+    intro: Option<String>,
     #[serde(default)]
     no_trace: bool,
     #[serde(default)]
@@ -281,6 +282,7 @@ fn parse_session(args: Value) -> Result<SessionArgs, AppError> {
             }
             SessionAction::Start(SessionStartArgs {
                 name: args.name,
+                intro: args.intro,
                 no_trace: args.no_trace,
                 screenshots: args.screenshots,
                 multi_agent: args.multi_agent,

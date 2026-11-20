@@ -53,6 +53,17 @@ impl CursorOverlayControl {
         }
     }
 
+    /// Replaces what an `Enable` says as the cursor fades in, such as a
+    /// session's opening note. Blank text and other controls are unchanged.
+    pub fn with_label(mut self, text: &str) -> Self {
+        if let Self::Enable { label, .. } = &mut self
+            && !text.trim().is_empty()
+        {
+            *label = text.trim().to_owned();
+        }
+        self
+    }
+
     pub fn style(&self) -> Option<&CursorOverlayStyle> {
         match self {
             Self::Enable { style, .. } | Self::Present { style, .. } => Some(style),

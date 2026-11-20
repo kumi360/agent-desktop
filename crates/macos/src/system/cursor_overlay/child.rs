@@ -1,19 +1,20 @@
 use agent_desktop_core::{
-    AdapterError, CURSOR_IDLE_REST_MS, CursorMotion, CursorMotionProfile, CursorOverlayConfig,
-    CursorOverlayControl, CursorOverlayInstruction, CursorOverlayStyle, CursorPhase, CursorPose,
-    ErrorCode, Point,
+    AdapterError, CURSOR_IDLE_REST_MS, CursorMotion, CursorMotionProfile, CursorOverlayControl,
+    CursorOverlayInstruction, CursorOverlayStyle, CursorPhase, CursorPose, Point,
 };
-use std::io::{Read, Write};
+use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
-use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::{Path, PathBuf};
+use std::os::unix::net::UnixListener;
 use std::time::{Duration, Instant};
 
 use super::bridge;
 
+#[path = "child_socket.rs"]
+mod socket;
+use socket::{cleanup, prepare_socket, prepare_stream, read_control, socket_path};
+
 pub(super) const MARKER: &str = "AGENT_DESKTOP_CURSOR_OVERLAY_CHILD";
 pub(super) const SOCKET_ENV: &str = "AGENT_DESKTOP_CURSOR_OVERLAY_SOCKET";
-const MAX_INSTRUCTION_BYTES: u64 = 4 * 1024;
 
 #[derive(Default)]
 struct OverlayState {
@@ -23,7 +24,7 @@ struct OverlayState {
     at: Option<Point>,
     dragging: bool,
     resting: bool,
-    narration: Option<Instant>,
+    cues: super::cues::Cues,
 }
 
 pub(crate) fn entry_from_env() -> Option<Result<(), AdapterError>> {
@@ -44,6 +45,10 @@ fn run() -> Result<(), AdapterError> {
     let socket = socket_path(&initial)?;
     prepare_socket(&socket)?;
     let mut state = OverlayState::default();
+    let session = super::session_flow::is_session(initial.session_id());
+    if !initial.is_enable() {
+        state.at = super::session_flow::recall();
+    }
     if !handle(&initial, &mut state)? {
         return cleanup(socket);
     }
@@ -65,7 +70,8 @@ fn run() -> Result<(), AdapterError> {
     let idle_exit = super::lifecycle::idle_exit_for(initial.session_id());
     loop {
         if checked_session.elapsed() >= Duration::from_secs(1) {
-            if !super::lifecycle::session_active(initial.session_id(), initial.agent_id())
+            let ended = !super::lifecycle::session_active(initial.session_id(), initial.agent_id());
+            if ended
                 || super::lifecycle::should_retire(
                     build.as_ref(),
                     quiet_since.elapsed(),
@@ -73,6 +79,9 @@ fn run() -> Result<(), AdapterError> {
                     bridge::drag_active(),
                 )
             {
+                if ended && session {
+                    super::session_flow::farewell(state.at.as_ref());
+                }
                 return cleanup(socket);
             }
             checked_session = std::time::Instant::now();
@@ -94,6 +103,9 @@ fn run() -> Result<(), AdapterError> {
                 }
                 if control.is_disable() {
                     drop(listener);
+                    if session {
+                        super::session_flow::farewell(state.at.as_ref());
+                    }
                     cleanup(socket)?;
                     let _ = stream.write_all(&[1]);
                     return Ok(());
@@ -106,7 +118,14 @@ fn run() -> Result<(), AdapterError> {
                 if std::mem::take(&mut state.resting) {
                     bridge::show();
                 }
+                if state.cues.stop_thinking() {
+                    bridge::think(None);
+                }
+                let landed = state.at.clone();
                 let outcome = handle(&control, &mut state);
+                if state.at != landed {
+                    super::session_flow::remember(state.at.as_ref());
+                }
                 if outcome.is_ok() && control.expects_acknowledgement() {
                     let _ = stream.write_all(&[1]);
                 }
@@ -116,17 +135,7 @@ fn run() -> Result<(), AdapterError> {
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 bridge::idle();
-                if super::narration::due(state.narration, Instant::now()) {
-                    state.narration = None;
-                    bridge::fade_label();
-                }
-                if !state.resting
-                    && !bridge::drag_active()
-                    && quiet_since.elapsed().as_millis() >= u128::from(CURSOR_IDLE_REST_MS)
-                {
-                    bridge::rest();
-                    state.resting = true;
-                }
+                pass_quiet_time(&mut state, session, quiet_since.elapsed());
                 super::lifecycle::wait_for_connection(&listener, Duration::from_millis(8));
             }
             Err(error) => {
@@ -138,12 +147,6 @@ fn run() -> Result<(), AdapterError> {
             }
         }
     }
-}
-
-fn prepare_stream(stream: &UnixStream) -> std::io::Result<()> {
-    stream.set_nonblocking(false)?;
-    stream.set_read_timeout(Some(Duration::from_secs(1)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(1)))
 }
 
 fn handle(control: &CursorOverlayControl, state: &mut OverlayState) -> Result<bool, AdapterError> {
@@ -163,21 +166,58 @@ fn handle(control: &CursorOverlayControl, state: &mut OverlayState) -> Result<bo
         apply_landing_memory(control, state, None);
         return Ok(true);
     }
-    let owned;
-    let instruction = if let Some(instruction) = control.instruction() {
-        instruction
-    } else {
-        let greeting_over_image = control.is_enable() && state.style.image().is_some();
-        let label = control.label().filter(|_| !greeting_over_image);
-        let config = CursorOverlayConfig::enabled(label.map(str::to_owned), 12)?;
-        owned = CursorOverlayInstruction::new(bridge::initial_point()?, &config, false)?;
-        &owned
+    let Some(sent) = control.instruction() else {
+        return open(control, state);
     };
+    let carried = state.cues.carry(sent);
+    let instruction = carried.as_ref().unwrap_or(sent);
     render(instruction, state)?;
-    state.narration = super::narration::after(instruction, state.narration, Instant::now());
+    state.cues.drawn(instruction, Instant::now());
     apply_landing_memory(control, state, Some(instruction));
     advance_moves(control, state);
     Ok(true)
+}
+
+/// A session's opening note, drawn where the cursor already is so it never
+/// jumps, or at the centre of the main screen when it is new.
+fn open(control: &CursorOverlayControl, state: &mut OverlayState) -> Result<bool, AdapterError> {
+    let greeting_over_image = state.style.image().is_some();
+    let label = control.label().filter(|_| !greeting_over_image);
+    let fresh = state.at.is_none();
+    let start = match state.at.clone() {
+        Some(at) => at,
+        None => bridge::initial_point()?,
+    };
+    let note = super::session_flow::still(&start, label)?;
+    let session = super::session_flow::is_session(control.session_id());
+    super::session_flow::open(&note, fresh, session)?;
+    state.cues.opened();
+    apply_landing_memory(control, state, Some(&note));
+    Ok(true)
+}
+
+/// Between steps a session's cursor stays on screen and, once the agent has
+/// been quiet a moment, shows the thinking spinner. An ambient cursor lets
+/// its narration fade and then rests out of sight.
+fn pass_quiet_time(state: &mut OverlayState, session: bool, quiet_for: Duration) {
+    if bridge::drag_active() {
+        return;
+    }
+    if session {
+        if state.at.is_some() && state.cues.think_due(quiet_for) {
+            bridge::think(state.at.as_ref());
+            state.cues.start_thinking();
+        }
+        return;
+    }
+    if state.cues.narration_due(Instant::now()) {
+        state.cues.narration_faded();
+        bridge::fade_label();
+    }
+    if !state.resting && quiet_for.as_millis() >= u128::from(CURSOR_IDLE_REST_MS) {
+        bridge::rest();
+        state.resting = true;
+    }
 }
 
 fn absorb_settings(control: &CursorOverlayControl, state: &mut OverlayState) -> Option<bool> {
@@ -247,11 +287,16 @@ fn render(
     if instruction.phase() == CursorPhase::Drag {
         let from = instruction.drag_from().unwrap_or(instruction.destination());
         let (screen, fps, reduce_motion) = bridge::screen_at(from)?;
+        let pace = bridge::RenderPace {
+            fps,
+            reduce_motion,
+            announce: false,
+            fade_in: false,
+        };
         bridge::run(
             &[CursorPose::still(from.clone())],
-            fps,
+            pace,
             instruction,
-            reduce_motion,
             &screen,
         )?;
         bridge::begin_drag(from, state.style.ripple() && !reduce_motion);
@@ -267,7 +312,13 @@ fn render(
         instruction.clone().with_target(None)
     };
     let frames = frames_for(state, &shown, &screen, fps, reduce_motion);
-    bridge::run(&frames, fps, &shown, reduce_motion, &screen)
+    let pace = bridge::RenderPace {
+        fps,
+        reduce_motion,
+        announce: shown.phase() == CursorPhase::Travel && shown.is_narrated(),
+        fade_in: false,
+    };
+    bridge::run(&frames, pace, &shown, &screen)
 }
 
 fn frames_for(
@@ -316,65 +367,6 @@ fn motion_frames(
             motion.pose(elapsed)
         })
         .collect()
-}
-
-fn read_control(reader: impl Read) -> Result<CursorOverlayControl, AdapterError> {
-    let mut payload = Vec::new();
-    reader
-        .take(MAX_INSTRUCTION_BYTES + 1)
-        .read_to_end(&mut payload)
-        .map_err(|error| {
-            AdapterError::internal("Could not read cursor overlay control")
-                .with_platform_detail(error.to_string())
-        })?;
-    if payload.len() as u64 > MAX_INSTRUCTION_BYTES {
-        return Err(AdapterError::internal(
-            "Cursor overlay instruction exceeds the transport limit",
-        ));
-    }
-    let control: CursorOverlayControl = serde_json::from_slice(&payload).map_err(|error| {
-        AdapterError::internal("Could not decode cursor overlay control")
-            .with_platform_detail(error.to_string())
-    })?;
-    control.validate()?;
-    Ok(control)
-}
-
-fn socket_path(control: &CursorOverlayControl) -> Result<PathBuf, AdapterError> {
-    let expected = super::endpoint::path(control.session_id(), control.agent_id())?;
-    let supplied = std::env::var_os(SOCKET_ENV)
-        .map(PathBuf::from)
-        .ok_or_else(|| AdapterError::internal("Cursor overlay child socket is missing"))?;
-    if supplied != expected {
-        return Err(AdapterError::new(
-            ErrorCode::InvalidArgs,
-            "Cursor overlay child socket does not match its session",
-        ));
-    }
-    Ok(expected)
-}
-
-fn prepare_socket(path: &Path) -> Result<(), AdapterError> {
-    match std::fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(
-            AdapterError::internal("Could not replace stale cursor overlay socket")
-                .with_platform_detail(error.to_string()),
-        ),
-    }
-}
-
-fn cleanup(path: PathBuf) -> Result<(), AdapterError> {
-    bridge::stop();
-    match std::fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(
-            AdapterError::internal("Could not remove cursor overlay socket")
-                .with_platform_detail(error.to_string()),
-        ),
-    }
 }
 
 #[cfg(test)]

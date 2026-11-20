@@ -44,16 +44,18 @@ pub use adapter::observation::ObservationOps;
 pub use adapter::system::SystemOps;
 pub use context::{CommandContext, WaitSelector};
 pub use cursor_overlay::{
-    AMBIENT_CURSOR_ID, CODEX_ACCENT, CURSOR_ARRIVAL_TIMEOUT_MS, CURSOR_ENV,
-    CURSOR_HIGHLIGHT_HOLD_MS, CURSOR_IDLE_REST_MS, CURSOR_LABEL_REVEAL_MS, CURSOR_MOTION_BUDGET_MS,
+    AMBIENT_CURSOR_ID, CODEX_ACCENT, CURSOR_ANNOUNCE_LEAD_MS, CURSOR_ARRIVAL_TIMEOUT_MS,
+    CURSOR_ENV, CURSOR_FAREWELL, CURSOR_FAREWELL_HOLD_MS, CURSOR_HIGHLIGHT_HOLD_MS,
+    CURSOR_IDLE_REST_MS, CURSOR_INTRO_HOLD_MS, CURSOR_LABEL_REVEAL_MS, CURSOR_MOTION_BUDGET_MS,
     CURSOR_NARRATION_HOLD_MS, CURSOR_OVERLAY_GREETING, CURSOR_REST_FADE_MS, CURSOR_SAME_POINT,
-    CursorImage, CursorImages, CursorLook, CursorMotion, CursorMotionProfile, CursorOverlayConfig,
-    CursorOverlayControl, CursorOverlayInstruction, CursorOverlayStyle, CursorPhase, CursorPose,
-    LABEL_FONT_POINTS, LABEL_PILL_HEIGHT, LABEL_PILL_MAX_WIDTH, LABEL_PILL_PADDING,
-    LABEL_SHADOW_BLUR, LABEL_SHADOW_OFFSET, LABEL_SHADOW_OPACITY, LabelPill,
-    MAX_CURSOR_IMAGE_BYTES, MAX_CURSOR_IMAGE_PATH_BYTES, MAX_CURSOR_IMAGE_PIXELS,
-    MAX_CURSOR_LABEL_BYTES, MAX_CURSOR_LABEL_WORDS, ambient_active, ambient_config, cursor_env_off,
-    place_label, present_window_cue, save_ambient_config, window_cue_point,
+    CURSOR_THINK_DELAY_MS, CursorImage, CursorImages, CursorLook, CursorMotion,
+    CursorMotionProfile, CursorOverlayConfig, CursorOverlayControl, CursorOverlayInstruction,
+    CursorOverlayStyle, CursorPhase, CursorPose, LABEL_FONT_POINTS, LABEL_PILL_HEIGHT,
+    LABEL_PILL_MAX_WIDTH, LABEL_PILL_PADDING, LABEL_SHADOW_BLUR, LABEL_SHADOW_OFFSET,
+    LABEL_SHADOW_OPACITY, LabelPill, MAX_CURSOR_IMAGE_BYTES, MAX_CURSOR_IMAGE_PATH_BYTES,
+    MAX_CURSOR_IMAGE_PIXELS, MAX_CURSOR_LABEL_BYTES, MAX_CURSOR_LABEL_WORDS, ambient_active,
+    ambient_config, cursor_env_off, place_label, present_window_cue, save_ambient_config,
+    window_cue_point,
 };
 pub use input::clipboard_content::ClipboardContent;
 pub use input::clipboard_format::ClipboardFormat;

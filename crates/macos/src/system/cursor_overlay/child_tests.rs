@@ -1,4 +1,6 @@
 use super::*;
+use agent_desktop_core::CursorOverlayConfig;
+use std::os::unix::net::UnixStream;
 use std::thread;
 
 #[test]

@@ -57,6 +57,7 @@ fn session_start_reports_the_adapter_overlay_result() {
             SessionArgs {
                 action: SessionAction::Start(crate::cli_args::session::SessionStartArgs {
                     name: None,
+                    intro: None,
                     no_trace: true,
                     screenshots: false,
                     cursor,
@@ -237,4 +238,17 @@ fn session_gc_ended_reclaims_an_ended_session_that_recorded_trace_events() {
 
     assert_eq!(value["removed"], serde_json::json!([manifest.id]));
     assert!(!home.path().join("sessions").join(&manifest.id).exists());
+}
+
+#[test]
+fn the_session_intro_says_it_is_starting_and_what_the_task_is() {
+    assert_eq!(super::intro_label(None), "Starting session");
+    assert_eq!(super::intro_label(Some("  ")), "Starting session");
+    assert_eq!(
+        super::intro_label(Some("I will open TextEdit and format a note")),
+        "Starting session: I will open TextEdit and format a note"
+    );
+    let long = super::intro_label(Some(&"word ".repeat(40)));
+    assert!(long.ends_with('…'));
+    assert!(long.chars().count() <= "Starting session: ".len() + 65);
 }

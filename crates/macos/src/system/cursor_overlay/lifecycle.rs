@@ -195,7 +195,7 @@ fn is_agent_desktop(pid: i32) -> bool {
 const AMBIENT_IDLE_EXIT: Duration = Duration::from_secs(120);
 /// A session overlay whose agent has gone quiet this long (a harness that
 /// was killed or never ran `session end`) leaves instead of lingering.
-const SESSION_IDLE_EXIT: Duration = Duration::from_secs(600);
+const SESSION_IDLE_EXIT: Duration = Duration::from_secs(900);
 
 pub(super) fn idle_exit_for(session_id: &str) -> Duration {
     if session_id == agent_desktop_core::AMBIENT_CURSOR_ID {

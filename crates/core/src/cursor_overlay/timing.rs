@@ -1,10 +1,33 @@
 /// How long a platform renderer may take to report that the cursor reached its
 /// destination before the action dispatches anyway.
-pub const CURSOR_ARRIVAL_TIMEOUT_MS: u64 = 900;
+pub const CURSOR_ARRIVAL_TIMEOUT_MS: u64 = 1_400;
 
-/// The largest cursor travel plus dwell that still leaves room for the socket
-/// round trip and frame pacing inside the arrival timeout.
-pub const CURSOR_MOTION_BUDGET_MS: u64 = CURSOR_ARRIVAL_TIMEOUT_MS - 200;
+/// How long a step's label is on screen, with the cursor still, before the
+/// cursor sets off toward the target, so a person watching reads what is
+/// about to happen before it happens.
+pub const CURSOR_ANNOUNCE_LEAD_MS: u64 = 450;
+
+/// The largest cursor travel plus dwell. With the announcement lead it still
+/// leaves room for the socket round trip and frame pacing inside the arrival
+/// timeout.
+pub const CURSOR_MOTION_BUDGET_MS: u64 = 700;
+
+const _: () =
+    assert!(CURSOR_ANNOUNCE_LEAD_MS + CURSOR_MOTION_BUDGET_MS + 200 <= CURSOR_ARRIVAL_TIMEOUT_MS);
+
+/// How long a session's cursor waits with nothing to do before it shows the
+/// small thinking spinner in its label spot.
+pub const CURSOR_THINK_DELAY_MS: u64 = 700;
+
+/// How long a session's opening note, "Starting session: ...", stays on
+/// screen at the centre of the main display before the first step.
+pub const CURSOR_INTRO_HOLD_MS: u64 = 1_500;
+
+/// How long the closing note stays beside the cursor before it fades out.
+pub const CURSOR_FAREWELL_HOLD_MS: u64 = 1_500;
+
+/// What the cursor says when its session ends.
+pub const CURSOR_FAREWELL: &str = "Completed, ending session";
 
 /// How long the overlay stays visible with no instruction before it rests.
 pub const CURSOR_IDLE_REST_MS: u64 = 6_000;
