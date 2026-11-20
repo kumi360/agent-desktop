@@ -152,8 +152,19 @@ pub(super) fn screen_at(point: &Point) -> Result<(Rect, u32, bool), AdapterError
             height: output[3],
         },
         (output[4] as u32).clamp(60, 120),
-        output[5] != 0.0,
+        output[5] != 0.0 || reduce_motion_requested(),
     ))
+}
+
+/// `AGENT_DESKTOP_REDUCE_MOTION=1` asks for the still cursor the system
+/// Reduce Motion setting gives, without changing System Settings.
+fn reduce_motion_requested() -> bool {
+    std::env::var("AGENT_DESKTOP_REDUCE_MOTION").is_ok_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
 }
 
 pub(super) fn run(
