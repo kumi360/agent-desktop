@@ -52,6 +52,7 @@ fn run() -> Result<(), AdapterError> {
     if !handle(&initial, &mut state)? {
         return cleanup(socket);
     }
+    super::session_flow::remember(state.at.as_ref());
     let listener = UnixListener::bind(&socket).map_err(|error| {
         AdapterError::internal("Could not bind the cursor overlay session socket")
             .with_platform_detail(error.to_string())
