@@ -47,7 +47,7 @@ pub(crate) use submit::{
     present_cue, submit, submit_caret, submit_caret_follow, submit_drag, submit_drag_effect,
     submit_travel, submit_travel_before_lease,
 };
-pub use submit::{present_window_cue, window_cue_point};
+pub use submit::{present_window_cue, present_window_gone, window_cue_point};
 pub use timing::{
     CURSOR_ANNOUNCE_LEAD_MS, CURSOR_ARRIVAL_TIMEOUT_MS, CURSOR_FAREWELL, CURSOR_FAREWELL_HOLD_MS,
     CURSOR_HIGHLIGHT_HOLD_MS, CURSOR_IDLE_REST_MS, CURSOR_INTRO_HOLD_MS, CURSOR_LABEL_REVEAL_MS,

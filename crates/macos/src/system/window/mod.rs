@@ -6,5 +6,6 @@ pub(crate) mod window_inventory;
 pub(crate) mod window_inventory_global;
 pub(crate) mod window_ops;
 pub(crate) mod window_postcondition;
+pub(crate) mod window_reach;
 pub(crate) mod window_report;
 pub(crate) mod window_resolve;

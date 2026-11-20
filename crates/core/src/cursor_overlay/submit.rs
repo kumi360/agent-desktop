@@ -214,6 +214,21 @@ pub fn present_window_cue(
     )
 }
 
+/// Says a window-level action finished with the window gone, such as
+/// "Closed Chess": the cursor stays on the spot where the window was, and the
+/// outline of the window that left is cleared so no ghost of it remains.
+pub fn present_window_gone(
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+    window: &Rect,
+    narration: &str,
+) -> bool {
+    if window.validate().is_err() {
+        return false;
+    }
+    present_cue(adapter, context, window_cue_point(window), None, narration)
+}
+
 /// Glides the cursor to `point` with a short narration, outlining `outline`
 /// on arrival when given. Presentation only; returns whether it was drawn.
 pub(crate) fn present_cue(

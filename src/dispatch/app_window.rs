@@ -50,14 +50,17 @@ pub(super) fn close_app(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let closing = window_cue::named("Closing", Some(&args.app));
-    window_cue::before(adapter, context, Some(&args.app), None, &closing);
-    close_app_command::execute(
+    let left = window_cue::before_at(adapter, context, Some(&args.app), None, &closing);
+    let closed = window_cue::named("Closed", Some(&args.app));
+    let value = close_app_command::execute(
         close_app_command::CloseAppArgs {
             app: args.app,
             force: args.force,
         },
         adapter,
-    )
+    )?;
+    window_cue::gone(context, adapter, left, &closed);
+    Ok(value)
 }
 
 pub(super) fn list_windows(
@@ -209,20 +212,23 @@ pub(super) fn minimize(
 ) -> Result<Value, AppError> {
     let scope = &args.scope;
     let minimizing = window_cue::named("Minimizing", scope.app.as_deref());
-    window_cue::before(
+    let left = window_cue::before_at(
         adapter,
         context,
         scope.app.as_deref(),
         scope.window_id.as_deref(),
         &minimizing,
     );
-    minimize_command::execute(
+    let minimized = window_cue::named("Minimized", scope.app.as_deref());
+    let value = minimize_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
             window_id: args.scope.window_id,
         },
         adapter,
-    )
+    )?;
+    window_cue::gone(context, adapter, left, &minimized);
+    Ok(value)
 }
 
 pub(super) fn maximize(
@@ -260,14 +266,6 @@ pub(super) fn restore(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
-    let cue = window_cue::named("Restoring", app.as_deref());
-    let shown = window_cue::before(
-        adapter,
-        context,
-        app.as_deref(),
-        args.scope.window_id.as_deref(),
-        &cue,
-    );
     let value = restore_command::execute(
         helpers::AppArgs {
             app: args.scope.app,
@@ -275,10 +273,8 @@ pub(super) fn restore(
         },
         adapter,
     )?;
-    if !shown {
-        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-            window_cue::named("Restoring", app)
-        });
-    }
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Restored", app)
+    });
     Ok(value)
 }

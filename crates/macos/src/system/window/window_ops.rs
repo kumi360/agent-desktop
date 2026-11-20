@@ -103,6 +103,15 @@ mod imp {
         y: f64,
         deadline: Deadline,
     ) -> Result<(), AdapterError> {
+        let displays = crate::system::display::list_displays_impl(deadline)
+            .map(|displays| {
+                displays
+                    .into_iter()
+                    .map(|display| display.bounds)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        crate::system::window::window_reach::ensure_reachable(x, y, &displays)?;
         write_position(el, x, y, deadline)?;
         crate::system::window::window_postcondition::wait_for_geometry(
             el,

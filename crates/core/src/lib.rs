@@ -54,8 +54,8 @@ pub use cursor_overlay::{
     LABEL_PILL_MAX_WIDTH, LABEL_PILL_PADDING, LABEL_SHADOW_BLUR, LABEL_SHADOW_OFFSET,
     LABEL_SHADOW_OPACITY, LabelPill, MAX_CURSOR_IMAGE_BYTES, MAX_CURSOR_IMAGE_PATH_BYTES,
     MAX_CURSOR_IMAGE_PIXELS, MAX_CURSOR_LABEL_BYTES, MAX_CURSOR_LABEL_WORDS, ambient_active,
-    ambient_config, cursor_env_off, place_label, present_window_cue, save_ambient_config,
-    window_cue_point,
+    ambient_config, cursor_env_off, place_label, present_window_cue, present_window_gone,
+    save_ambient_config, window_cue_point,
 };
 pub use input::clipboard_content::ClipboardContent;
 pub use input::clipboard_format::ClipboardFormat;

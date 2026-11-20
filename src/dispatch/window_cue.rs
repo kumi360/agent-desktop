@@ -7,6 +7,7 @@
 
 use agent_desktop_core::{
     PlatformAdapter, Rect, WindowFilter, WindowInfo, context::CommandContext, present_window_cue,
+    present_window_gone,
 };
 use serde_json::Value;
 
@@ -21,14 +22,35 @@ pub(super) fn before(
     window_id: Option<&str>,
     narration: &str,
 ) -> bool {
-    if context.overlay_key().is_none() {
-        return false;
-    }
-    let Some(bounds) = lookup(adapter, app, window_id) else {
-        return false;
-    };
+    before_at(adapter, context, app, window_id, narration).is_some()
+}
+
+/// Like [`before`], returning the outlined window's bounds so a command that
+/// takes the window away can clear its outline with [`gone`] afterwards.
+pub(super) fn before_at(
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+    app: Option<&str>,
+    window_id: Option<&str>,
+    narration: &str,
+) -> Option<Rect> {
+    context.overlay_key()?;
+    let bounds = lookup(adapter, app, window_id)?;
     present_window_cue(adapter, context, &bounds, narration);
-    true
+    Some(bounds)
+}
+
+/// After a window left the screen (closed or minimized), says so in the past
+/// tense and clears its outline, so nothing is left pointing at empty space.
+pub(super) fn gone(
+    context: &CommandContext,
+    adapter: &dyn PlatformAdapter,
+    left: Option<Rect>,
+    narration: &str,
+) {
+    if let Some(bounds) = left {
+        present_window_gone(adapter, context, &bounds, narration);
+    }
 }
 
 /// Shows the cue after a command succeeded, using the window the result
