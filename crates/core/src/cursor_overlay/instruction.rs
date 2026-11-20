@@ -17,6 +17,8 @@ pub struct CursorOverlayInstruction {
     phase: CursorPhase,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pointer: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    narrated: bool,
 }
 
 fn narration_len(narration: Option<&str>) -> usize {
@@ -44,6 +46,7 @@ impl CursorOverlayInstruction {
             target: None,
             phase: CursorPhase::Travel,
             pointer: false,
+            narrated: false,
         })
     }
 
@@ -57,8 +60,15 @@ impl CursorOverlayInstruction {
                 text.push('…');
             }
             self.label = Some(text);
+            self.narrated = true;
         }
         self
+    }
+
+    /// Whether the label narrates this one action rather than naming the
+    /// agent, so renderers let it fade once the action settles.
+    pub const fn is_narrated(&self) -> bool {
+        self.narrated
     }
 
     pub const fn with_phase(mut self, phase: CursorPhase) -> Self {

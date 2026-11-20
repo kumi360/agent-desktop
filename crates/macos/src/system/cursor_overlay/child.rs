@@ -7,7 +7,7 @@ use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::bridge;
 
@@ -23,6 +23,7 @@ struct OverlayState {
     at: Option<Point>,
     dragging: bool,
     resting: bool,
+    narration: Option<Instant>,
 }
 
 pub(crate) fn entry_from_env() -> Option<Result<(), AdapterError>> {
@@ -115,6 +116,10 @@ fn run() -> Result<(), AdapterError> {
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 bridge::idle();
+                if super::narration::due(state.narration, Instant::now()) {
+                    state.narration = None;
+                    bridge::fade_label();
+                }
                 if !state.resting
                     && !bridge::drag_active()
                     && quiet_since.elapsed().as_millis() >= u128::from(CURSOR_IDLE_REST_MS)
@@ -122,7 +127,7 @@ fn run() -> Result<(), AdapterError> {
                     bridge::rest();
                     state.resting = true;
                 }
-                wait_for_connection(&listener, Duration::from_millis(8));
+                super::lifecycle::wait_for_connection(&listener, Duration::from_millis(8));
             }
             Err(error) => {
                 let _ = cleanup(socket);
@@ -133,19 +138,6 @@ fn run() -> Result<(), AdapterError> {
             }
         }
     }
-}
-
-/// Waits up to `timeout` for the next control, waking as soon as one
-/// connects, so a control is drawn within the frame it was sent in rather
-/// than after a fixed sleep.
-fn wait_for_connection(listener: &std::os::unix::net::UnixListener, timeout: Duration) {
-    let mut ready = libc::pollfd {
-        fd: std::os::fd::AsRawFd::as_raw_fd(listener),
-        events: libc::POLLIN,
-        revents: 0,
-    };
-    let millis = libc::c_int::try_from(timeout.as_millis()).unwrap_or(libc::c_int::MAX);
-    unsafe { libc::poll(&mut ready, 1, millis) };
 }
 
 fn prepare_stream(stream: &UnixStream) -> std::io::Result<()> {
@@ -182,6 +174,7 @@ fn handle(control: &CursorOverlayControl, state: &mut OverlayState) -> Result<bo
         &owned
     };
     render(instruction, state)?;
+    state.narration = super::narration::after(instruction, state.narration, Instant::now());
     apply_landing_memory(control, state, Some(instruction));
     advance_moves(control, state);
     Ok(true)

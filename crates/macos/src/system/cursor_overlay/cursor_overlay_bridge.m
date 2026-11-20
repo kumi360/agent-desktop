@@ -375,6 +375,20 @@ bool agent_desktop_cursor_overlay_drag_active(void) {
     return ADDragArmed;
 }
 
+void agent_desktop_cursor_overlay_fade_label(void) {
+    @autoreleasepool {
+        NSApplication *app = NSApplication.sharedApplication;
+        for (double step = 1.0; step > 0.0 && ADBubbleWindow.isVisible; step -= 0.08) {
+            ADBubbleWindow.alphaValue = step;
+            ADPump(app);
+            [NSThread sleepForTimeInterval:0.016];
+        }
+        [ADBubbleWindow orderOut:nil];
+        ADBubbleText.stringValue = @"";
+        ADBubbleWindow.alphaValue = 1.0;
+    }
+}
+
 void agent_desktop_cursor_overlay_show(void) {
     [ADCursorWindow orderFrontRegardless];
     if (ADBubbleText.stringValue.length > 0) {

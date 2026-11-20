@@ -219,6 +219,19 @@ pub(super) fn session_active(session_id: &str, agent_id: Option<&str>) -> bool {
         })
 }
 
+/// Waits up to `timeout` for the next control, waking as soon as one
+/// connects, so a control is drawn within the frame it was sent in rather
+/// than after a fixed sleep.
+pub(super) fn wait_for_connection(listener: &std::os::unix::net::UnixListener, timeout: Duration) {
+    let mut ready = libc::pollfd {
+        fd: std::os::fd::AsRawFd::as_raw_fd(listener),
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    let millis = libc::c_int::try_from(timeout.as_millis()).unwrap_or(libc::c_int::MAX);
+    unsafe { libc::poll(&mut ready, 1, millis) };
+}
+
 #[cfg(test)]
 #[path = "lifecycle_tests.rs"]
 mod tests;

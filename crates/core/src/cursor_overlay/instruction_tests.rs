@@ -32,3 +32,22 @@ fn only_travels_and_drags_depart() {
         "a drag sets off from its origin, where the cursor already is"
     );
 }
+
+#[test]
+fn only_a_narration_marks_the_label_as_fading() {
+    let plain = instruction(10.0, CursorPhase::Travel);
+    assert!(!plain.is_narrated());
+    let wire = serde_json::to_value(&plain).expect("serializes");
+    assert!(
+        wire.get("narrated").is_none(),
+        "plain instructions stay byte-identical"
+    );
+
+    let narrated = plain.with_narration(Some("Restoring TextEdit"));
+    assert!(narrated.is_narrated());
+    let back: CursorOverlayInstruction =
+        serde_json::from_value(serde_json::to_value(&narrated).expect("serializes"))
+            .expect("round trips");
+    assert!(back.is_narrated());
+    assert_eq!(back.label(), Some("Restoring TextEdit"));
+}

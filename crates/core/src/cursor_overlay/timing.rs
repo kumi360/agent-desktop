@@ -9,6 +9,11 @@ pub const CURSOR_MOTION_BUDGET_MS: u64 = CURSOR_ARRIVAL_TIMEOUT_MS - 200;
 /// How long the overlay stays visible with no instruction before it rests.
 pub const CURSOR_IDLE_REST_MS: u64 = 6_000;
 
+/// How long an action's narration, such as "Restoring TextEdit", stays on
+/// the label once drawn. It then fades, so a caption never outlives its
+/// action and never describes the next one.
+pub const CURSOR_NARRATION_HOLD_MS: u64 = 2_400;
+
 /// How long the outline around a clicked element stays on screen.
 pub const CURSOR_HIGHLIGHT_HOLD_MS: u64 = 900;
 

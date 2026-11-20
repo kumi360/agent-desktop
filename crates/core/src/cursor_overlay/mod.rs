@@ -49,7 +49,7 @@ pub(crate) use submit::{
 pub use submit::{present_window_cue, window_cue_point};
 pub use timing::{
     CURSOR_ARRIVAL_TIMEOUT_MS, CURSOR_HIGHLIGHT_HOLD_MS, CURSOR_IDLE_REST_MS,
-    CURSOR_LABEL_REVEAL_MS, CURSOR_MOTION_BUDGET_MS, CURSOR_REST_FADE_MS,
+    CURSOR_LABEL_REVEAL_MS, CURSOR_MOTION_BUDGET_MS, CURSOR_NARRATION_HOLD_MS, CURSOR_REST_FADE_MS,
 };
 
 #[cfg(test)]

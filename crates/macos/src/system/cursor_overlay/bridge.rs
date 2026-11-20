@@ -70,6 +70,7 @@ unsafe extern "C" {
     fn agent_desktop_cursor_overlay_hide();
     fn agent_desktop_cursor_overlay_rest();
     fn agent_desktop_cursor_overlay_show();
+    fn agent_desktop_cursor_overlay_fade_label();
     fn agent_desktop_cursor_overlay_stop();
 }
 
@@ -282,6 +283,11 @@ pub(super) fn rest() {
 
 pub(super) fn hide() {
     unsafe { agent_desktop_cursor_overlay_hide() }
+}
+
+/// Fades the label away and clears it, leaving the cursor where it is.
+pub(super) fn fade_label() {
+    unsafe { agent_desktop_cursor_overlay_fade_label() }
 }
 
 pub(super) fn show() {
