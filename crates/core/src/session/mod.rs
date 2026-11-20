@@ -5,6 +5,7 @@ mod manifest;
 pub(crate) mod process_lease_guard;
 pub(crate) mod session_affinity;
 mod tree;
+pub(crate) use tree::make_root_private as make_state_root_private;
 
 pub use gc::{GcOptions, GcReport, gc, is_live};
 pub use liveness::SessionLivenessLease;
