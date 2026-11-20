@@ -40,6 +40,24 @@ pub(super) fn before_at(
     Some(bounds)
 }
 
+/// Like [`before_at`] for a command that takes the window away (closing or
+/// minimizing it). The label then stays on the window for the announcement
+/// lead before the command acts, so a person reads which window is leaving
+/// even when the cursor was already on it and had no glide to make.
+pub(super) fn before_leaving(
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+    app: Option<&str>,
+    window_id: Option<&str>,
+    narration: &str,
+) -> Option<Rect> {
+    let bounds = before_at(adapter, context, app, window_id, narration)?;
+    std::thread::sleep(std::time::Duration::from_millis(
+        agent_desktop_core::CURSOR_ANNOUNCE_LEAD_MS,
+    ));
+    Some(bounds)
+}
+
 /// After a window left the screen (closed or minimized), says so in the past
 /// tense and clears its outline, so nothing is left pointing at empty space.
 pub(super) fn gone(

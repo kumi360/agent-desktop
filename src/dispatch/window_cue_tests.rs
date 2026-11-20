@@ -70,3 +70,11 @@ fn a_cue_prefers_the_window_the_result_names() {
     );
     assert!(reported_target_window(&json!({"target": {"kind": "app", "id": "x"}})).is_none());
 }
+
+#[test]
+fn the_leaving_hold_fits_inside_the_arrival_budget() {
+    const _: () = assert!(
+        agent_desktop_core::CURSOR_ANNOUNCE_LEAD_MS * 2
+            <= agent_desktop_core::CURSOR_ARRIVAL_TIMEOUT_MS
+    );
+}

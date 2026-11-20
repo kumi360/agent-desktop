@@ -50,7 +50,7 @@ pub(super) fn close_app(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let closing = window_cue::named("Closing", Some(&args.app));
-    let left = window_cue::before_at(adapter, context, Some(&args.app), None, &closing);
+    let left = window_cue::before_leaving(adapter, context, Some(&args.app), None, &closing);
     let closed = window_cue::named("Closed", Some(&args.app));
     let value = close_app_command::execute(
         close_app_command::CloseAppArgs {
@@ -212,7 +212,7 @@ pub(super) fn minimize(
 ) -> Result<Value, AppError> {
     let scope = &args.scope;
     let minimizing = window_cue::named("Minimizing", scope.app.as_deref());
-    let left = window_cue::before_at(
+    let left = window_cue::before_leaving(
         adapter,
         context,
         scope.app.as_deref(),
@@ -238,7 +238,7 @@ pub(super) fn maximize(
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
     let cue = window_cue::named("Maximizing", app.as_deref());
-    let shown = window_cue::before(
+    window_cue::before(
         adapter,
         context,
         app.as_deref(),
@@ -252,11 +252,9 @@ pub(super) fn maximize(
         },
         adapter,
     )?;
-    if !shown {
-        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-            window_cue::named("Maximizing", app)
-        });
-    }
+    window_cue::after(adapter, context, &value, app.as_deref(), |app| {
+        window_cue::named("Maximized", app)
+    });
     Ok(value)
 }
 

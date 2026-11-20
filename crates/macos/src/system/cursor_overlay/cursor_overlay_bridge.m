@@ -510,6 +510,9 @@ bool agent_desktop_cursor_overlay_run(const AgentDesktopCursorFrame *frames,
             if (!showsBubble || changedLabel) {
                 [ADBubbleWindow orderOut:nil];
             }
+            if (showsBubble && changedLabel && (config->flags & ADHighlightCue) == 0) {
+                ADHighlightStop();
+            }
             NSRect pillFrame = NSMakeRect(config->bubble[0],
                                           mainHeight - config->bubble[1] - config->bubble[3],
                                           config->bubble[2], config->bubble[3]);

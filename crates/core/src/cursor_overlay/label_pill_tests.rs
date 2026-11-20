@@ -68,3 +68,11 @@ fn a_pill_cut_down_to_the_screen_cuts_its_text_room_too() {
         "a wide enough screen leaves it alone"
     );
 }
+
+#[test]
+fn the_longest_session_intro_fits_without_being_cut() {
+    let intro = format!("Starting session: {}…", "w".repeat(64));
+    let generous = intro.chars().count() as f64 * LABEL_FONT_POINTS * 0.7;
+    let pill = LabelPill::for_label(&intro, generous, 1.0).expect("a pill");
+    assert!(pill.size().0 < LABEL_PILL_MAX_WIDTH);
+}

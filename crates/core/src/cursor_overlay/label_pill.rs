@@ -13,7 +13,7 @@ pub const LABEL_PILL_HEIGHT: f64 = 24.0;
 /// Space between the text and each end of the pill.
 pub const LABEL_PILL_PADDING: f64 = 10.0;
 /// The widest the pill grows; longer text is cut short with an ellipsis.
-pub const LABEL_PILL_MAX_WIDTH: f64 = 560.0;
+pub const LABEL_PILL_MAX_WIDTH: f64 = 800.0;
 /// The pill's shadow: black at this opacity, offset down and blurred.
 pub const LABEL_SHADOW_OPACITY: f64 = 0.31;
 pub const LABEL_SHADOW_OFFSET: f64 = 2.0;
