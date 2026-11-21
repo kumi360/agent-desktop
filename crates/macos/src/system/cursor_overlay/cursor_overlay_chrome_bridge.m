@@ -205,7 +205,10 @@ static CAKeyframeAnimation *ADHold(NSString *path,
     return animation;
 }
 
+static NSRect ADHighlightShown = {{0.0, 0.0}, {0.0, 0.0}};
+
 void ADHighlightShow(NSRect frame, double seconds) {
+    ADHighlightShown = frame;
     if (ADHighlightWindow == nil) {
         ADHighlightWindow = ADWindow(frame);
         ADHighlightWindow.level = ADEffectLevel;
@@ -273,7 +276,13 @@ void ADCaretStop(void) {
     ADCaretBar = nil;
 }
 
+bool ADHighlightShowing(NSRect frame) {
+    return ADHighlightWindow != nil && ADHighlightWindow.isVisible &&
+           NSEqualRects(ADHighlightShown, frame);
+}
+
 void ADHighlightStop(void) {
+    ADHighlightShown = NSZeroRect;
     [ADHighlightBorder removeAllAnimations];
     [ADHighlightWindow orderOut:nil];
     ADHighlightWindow = nil;

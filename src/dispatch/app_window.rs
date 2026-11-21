@@ -1,5 +1,5 @@
 use agent_desktop_core::{
-    AppError, PlatformAdapter,
+    AppError, PlatformAdapter, Rect,
     commands::{
         close_app as close_app_command, focus_window as focus_window_command, helpers,
         launch as launch_command, list_apps as list_apps_command,
@@ -149,14 +149,14 @@ pub(super) fn resize_window(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
+    let window_id = args.scope.window_id.clone();
     let cue = window_cue::named("Resizing", app.as_deref());
-    let shown = window_cue::before(
-        adapter,
-        context,
-        app.as_deref(),
-        args.scope.window_id.as_deref(),
-        &cue,
-    );
+    let was = window_cue::before_at(adapter, context, app.as_deref(), window_id.as_deref(), &cue);
+    let asked = was.map(|was| Rect {
+        width: args.width,
+        height: args.height,
+        ..was
+    });
     let value = resize_window_command::execute(
         resize_window_command::ResizeWindowArgs {
             app: args.scope.app,
@@ -166,11 +166,13 @@ pub(super) fn resize_window(
         },
         adapter,
     )?;
-    if !shown {
-        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-            window_cue::named("Resizing", app)
-        });
-    }
+    window_cue::changed(
+        adapter,
+        context,
+        (app.as_deref(), window_id.as_deref()),
+        (was, asked),
+        &window_cue::named("Resized", app.as_deref()),
+    );
     Ok(value)
 }
 
@@ -180,14 +182,14 @@ pub(super) fn move_window(
     context: &CommandContext,
 ) -> Result<Value, AppError> {
     let app = args.scope.app.clone();
+    let window_id = args.scope.window_id.clone();
     let cue = window_cue::named("Moving", app.as_deref());
-    let shown = window_cue::before(
-        adapter,
-        context,
-        app.as_deref(),
-        args.scope.window_id.as_deref(),
-        &cue,
-    );
+    let was = window_cue::before_at(adapter, context, app.as_deref(), window_id.as_deref(), &cue);
+    let asked = was.map(|was| Rect {
+        x: args.x,
+        y: args.y,
+        ..was
+    });
     let value = move_window_command::execute(
         move_window_command::MoveWindowArgs {
             app: args.scope.app,
@@ -197,11 +199,13 @@ pub(super) fn move_window(
         },
         adapter,
     )?;
-    if !shown {
-        window_cue::after(adapter, context, &value, app.as_deref(), |app| {
-            window_cue::named("Moving", app)
-        });
-    }
+    window_cue::changed(
+        adapter,
+        context,
+        (app.as_deref(), window_id.as_deref()),
+        (was, asked),
+        &window_cue::named("Moved", app.as_deref()),
+    );
     Ok(value)
 }
 

@@ -459,13 +459,14 @@ void agent_desktop_cursor_overlay_think(bool on, double x, double y, double widt
     }
 }
 
-static void ADHighlightTarget(const AgentDesktopCursorRenderConfig *config, double mainHeight) {
+static NSRect ADTargetFrame(const AgentDesktopCursorRenderConfig *config, double mainHeight) {
     const double *target = config->target;
-    ADHighlightShow(NSMakeRect(target[0] - ADHighlightPad,
-                               mainHeight - target[1] - target[3] - ADHighlightPad,
-                               target[2] + ADHighlightPad * 2.0,
-                               target[3] + ADHighlightPad * 2.0),
-                    config->highlightSeconds);
+    return NSMakeRect(target[0] - ADHighlightPad, mainHeight - target[1] - target[3] - ADHighlightPad,
+                      target[2] + ADHighlightPad * 2.0, target[3] + ADHighlightPad * 2.0);
+}
+
+static void ADHighlightTarget(const AgentDesktopCursorRenderConfig *config, double mainHeight) {
+    ADHighlightShow(ADTargetFrame(config, mainHeight), config->highlightSeconds);
 }
 
 bool agent_desktop_cursor_overlay_run(const AgentDesktopCursorFrame *frames,
@@ -510,7 +511,9 @@ bool agent_desktop_cursor_overlay_run(const AgentDesktopCursorFrame *frames,
             if (!showsBubble || changedLabel) {
                 [ADBubbleWindow orderOut:nil];
             }
-            if (showsBubble && changedLabel && (config->flags & ADHighlightCue) == 0) {
+            bool keepsOutline = (config->flags & ADHighlightCue) != 0 &&
+                                ADHighlightShowing(ADTargetFrame(config, mainHeight));
+            if (showsBubble && changedLabel && !keepsOutline) {
                 ADHighlightStop();
             }
             NSRect pillFrame = NSMakeRect(config->bubble[0],

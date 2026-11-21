@@ -24,6 +24,7 @@ void ADFreezeLayer(CALayer *layer);
 NSWindow *ADRippleWindow(void);
 void ADRipplePlay(NSWindow *window);
 void ADHighlightShow(NSRect frame, double seconds);
+bool ADHighlightShowing(NSRect frame);
 void ADHighlightStop(void);
 void ADCaretShow(NSRect frame);
 void ADCaretStop(void);

@@ -97,6 +97,36 @@ pub(super) fn after(
     }
 }
 
+/// After a command changed a window's frame (moving or resizing it), says so
+/// and outlines the window where it now is, so no outline is left on where it
+/// used to be. `frames` is the frame before the command and the frame the
+/// command asked for.
+pub(super) fn changed(
+    adapter: &dyn PlatformAdapter,
+    context: &CommandContext,
+    scope: (Option<&str>, Option<&str>),
+    frames: (Option<Rect>, Option<Rect>),
+    narration: &str,
+) {
+    if context.overlay_key().is_none() {
+        return;
+    }
+    let live = lookup(adapter, scope.0, scope.1);
+    if let Some(bounds) = settled(live, frames.0, frames.1) {
+        present_window_cue(adapter, context, &bounds, narration);
+    }
+}
+
+/// The frame a window settled on: the live frame once it differs from the old
+/// one, or else the frame asked for, since the window list can still report
+/// the old frame for a moment after the change.
+fn settled(live: Option<Rect>, was: Option<Rect>, asked: Option<Rect>) -> Option<Rect> {
+    match live {
+        Some(live) if Some(live) != was => Some(live),
+        _ => asked.or(live),
+    }
+}
+
 pub(super) fn named(verb: &str, app: Option<&str>) -> String {
     match app.map(str::trim).filter(|app| !app.is_empty()) {
         Some(app) => format!("{verb} {app}"),
