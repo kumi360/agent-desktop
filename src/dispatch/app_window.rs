@@ -170,7 +170,7 @@ pub(super) fn resize_window(
         adapter,
         context,
         (app.as_deref(), window_id.as_deref()),
-        (was, asked),
+        asked,
         &window_cue::named("Resized", app.as_deref()),
     );
     Ok(value)
@@ -203,7 +203,7 @@ pub(super) fn move_window(
         adapter,
         context,
         (app.as_deref(), window_id.as_deref()),
-        (was, asked),
+        asked,
         &window_cue::named("Moved", app.as_deref()),
     );
     Ok(value)

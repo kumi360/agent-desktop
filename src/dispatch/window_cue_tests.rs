@@ -89,18 +89,15 @@ fn rect(x: f64, y: f64, width: f64, height: f64) -> Rect {
 }
 
 #[test]
-fn a_moved_window_is_outlined_where_it_now_is() {
-    let was = rect(1490.0, 250.0, 230.0, 280.0);
-    let asked = rect(820.0, 220.0, 230.0, 280.0);
-    let live = rect(822.0, 220.0, 230.0, 280.0);
-    assert_eq!(settled(Some(live), Some(was), Some(asked)), Some(live));
+fn a_moved_window_is_outlined_where_it_was_asked_to_go() {
+    let old = rect(0.0, 40.0, 760.0, 560.0);
+    let asked = rect(700.0, 160.0, 760.0, 560.0);
+    assert_eq!(settled(Some(asked), || Some(old)), Some(asked));
 }
 
 #[test]
-fn a_window_list_still_showing_the_old_frame_uses_the_frame_asked_for() {
-    let was = rect(1490.0, 250.0, 230.0, 280.0);
-    let asked = rect(820.0, 220.0, 230.0, 280.0);
-    assert_eq!(settled(Some(was), Some(was), Some(asked)), Some(asked));
-    assert_eq!(settled(None, Some(was), Some(asked)), Some(asked));
-    assert_eq!(settled(Some(was), None, None), Some(was));
+fn without_an_asked_frame_the_live_frame_is_used() {
+    let live = rect(700.0, 160.0, 760.0, 560.0);
+    assert_eq!(settled(None, || Some(live)), Some(live));
+    assert_eq!(settled(None, || None), None);
 }
